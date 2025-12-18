@@ -44,3 +44,13 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Plugin related files
+Plugins/
+TestDependency/
+TestDependentPlugin/
+TestPlugin/
+
+# Trae AI files
+.trae/
+

@@ -162,5 +162,36 @@ namespace WPFPluginToolbox.Core
         bool HasDependency(string pluginId);
         
         #endregion
+        
+        #region 配置操作
+        
+        /// <summary>
+        /// 获取配置目录路径
+        /// </summary>
+        string ConfigDirectory { get; }
+        
+        /// <summary>
+        /// 获取插件配置
+        /// </summary>
+        /// <typeparam name="T">配置类型</typeparam>
+        /// <param name="defaultConfig">默认配置</param>
+        /// <returns>配置对象</returns>
+        T GetConfig<T>(T defaultConfig) where T : class;
+        
+        /// <summary>
+        /// 保存插件配置
+        /// </summary>
+        /// <typeparam name="T">配置类型</typeparam>
+        /// <param name="config">配置对象</param>
+        /// <returns>任务</returns>
+        Task SaveConfigAsync<T>(T config) where T : class;
+        
+        /// <summary>
+        /// 检查是否存在配置文件
+        /// </summary>
+        /// <returns>是否存在配置文件</returns>
+        bool HasConfig();
+        
+        #endregion
     }
 }

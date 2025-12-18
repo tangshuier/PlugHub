@@ -45,6 +45,8 @@
                         <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged">
                             <ListBox.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="配置" Click="ConfigurePluginMenuItem_Click"/>
+                                    <Separator/>
                                     <MenuItem Header="卸载插件" Click="UnloadPluginMenuItem_Click"/>
                                     <MenuItem Header="重载插件" Click="ReloadPluginMenuItem_Click"/>
                                     <MenuItem Header="导出插件" Click="ExportPluginMenuItem_Click"/>

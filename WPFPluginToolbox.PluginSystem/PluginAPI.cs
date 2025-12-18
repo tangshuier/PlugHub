@@ -37,6 +37,17 @@ namespace WPFPluginToolbox.PluginSystem
         /// 插件加载器实例
         /// </summary>
         private readonly PluginLoader? _pluginLoader;
+        
+        /// <summary>
+        /// 配置文件路径
+        /// </summary>
+        private string ConfigFilePath
+        {
+            get
+            {
+                return Path.Combine(ConfigDirectory, "config.json");
+            }
+        }
 
         #endregion
 
@@ -388,6 +399,99 @@ namespace WPFPluginToolbox.PluginSystem
             }
         }
 
+        #endregion
+        
+        #region 配置操作
+        
+        /// <summary>
+        /// 获取配置目录路径
+        /// </summary>
+        public string ConfigDirectory
+        {
+            get
+            {
+                // 获取插件目录
+                string pluginsDirectory = Path.GetDirectoryName(PluginPath) ?? string.Empty;
+                // 配置目录为 Plugins/[PluginId]
+                string configDir = Path.Combine(pluginsDirectory, PluginId);
+                // 确保目录存在
+                if (!Directory.Exists(configDir))
+                {
+                    Directory.CreateDirectory(configDir);
+                    Info($"创建了配置目录: {configDir}");
+                }
+                return configDir;
+            }
+        }
+        
+        /// <summary>
+        /// 获取插件配置
+        /// </summary>
+        /// <typeparam name="T">配置类型</typeparam>
+        /// <param name="defaultConfig">默认配置</param>
+        /// <returns>配置对象</returns>
+        public T GetConfig<T>(T defaultConfig) where T : class
+        {
+            try
+            {
+                if (!FileExists(ConfigFilePath))
+                {
+                    Info($"配置文件不存在，使用默认配置: {ConfigFilePath}");
+                    return defaultConfig;
+                }
+                
+                string json = File.ReadAllText(ConfigFilePath);
+                T config = System.Text.Json.JsonSerializer.Deserialize<T>(json) ?? defaultConfig;
+                Info($"成功读取配置: {ConfigFilePath}");
+                return config;
+            }
+            catch (Exception ex)
+            {
+                Error($"读取配置失败: {ConfigFilePath}", ex);
+                return defaultConfig;
+            }
+        }
+        
+        /// <summary>
+        /// 保存插件配置
+        /// </summary>
+        /// <typeparam name="T">配置类型</typeparam>
+        /// <param name="config">配置对象</param>
+        /// <returns>任务</returns>
+        public async Task SaveConfigAsync<T>(T config) where T : class
+        {
+            try
+            {
+                // 确保配置目录存在
+                if (!Directory.Exists(ConfigDirectory))
+                {
+                    Directory.CreateDirectory(ConfigDirectory);
+                }
+                
+                string json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                
+                await File.WriteAllTextAsync(ConfigFilePath, json);
+                Info($"成功保存配置: {ConfigFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Error($"保存配置失败: {ConfigFilePath}", ex);
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// 检查是否存在配置文件
+        /// </summary>
+        /// <returns>是否存在配置文件</returns>
+        public bool HasConfig()
+        {
+            return FileExists(ConfigFilePath);
+        }
+        
         #endregion
 
         #region 内部方法

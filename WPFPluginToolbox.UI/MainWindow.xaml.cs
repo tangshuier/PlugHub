@@ -418,6 +418,64 @@ public partial class MainWindow : Window
         }
         
         /// <summary>
+        /// 配置插件菜单项点击事件
+        /// </summary>
+        private void ConfigurePluginMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (PluginsListBox.SelectedItem is PluginMetadata selectedPluginMetadata)
+            {
+                try
+                {
+                    _logService.Info($"=== 配置插件开始 ===");
+                    _logService.Info($"选中的插件: {selectedPluginMetadata.Name} (ID: {selectedPluginMetadata.Id})");
+                    
+                    if (!string.IsNullOrEmpty(selectedPluginMetadata.Id) && !string.IsNullOrEmpty(selectedPluginMetadata.PluginPath))
+                    {
+                        // 构造配置文件路径
+                        string pluginsDirectory = Path.GetDirectoryName(selectedPluginMetadata.PluginPath) ?? string.Empty;
+                        string configDir = Path.Combine(pluginsDirectory, selectedPluginMetadata.Id);
+                        string configPath = Path.Combine(configDir, "config.json");
+                        
+                        _logService.Info($"配置文件路径: {configPath}");
+                        
+                        // 确保配置目录存在
+                        if (!Directory.Exists(configDir))
+                        {
+                            Directory.CreateDirectory(configDir);
+                            _logService.Info($"创建了配置目录: {configDir}");
+                        }
+                        
+                        // 如果配置文件不存在，创建一个空的JSON文件
+                        if (!File.Exists(configPath))
+                        {
+                            File.WriteAllText(configPath, "{\n  // 插件配置文件\n  // 在JSON格式中配置插件参数\n}", System.Text.Encoding.UTF8);
+                            _logService.Info($"创建了新的配置文件: {configPath}");
+                        }
+                        
+                        // 使用默认应用程序打开配置文件
+                        _logService.Info($"打开配置文件: {configPath}");
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(configPath) { UseShellExecute = true });
+                    }
+                    else
+                    {
+                        _logService.Error($"配置插件失败：插件ID或路径为空");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logService.Error($"配置插件时发生异常");
+                    _logService.Error($"异常信息: {ex.Message}");
+                    _logService.Error($"异常堆栈: {ex.StackTrace}");
+                    MessageBox.Show($"打开配置文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                _logService.Warning("未选中任何插件进行配置");
+            }
+        }
+        
+        /// <summary>
         /// 导入插件按钮点击事件
         /// </summary>
         private void ImportPlugins_Click(object sender, RoutedEventArgs e)
