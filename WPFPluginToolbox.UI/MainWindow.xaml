@@ -1,0 +1,139 @@
+<Window x:Class="WPFPluginToolbox.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WPFPluginToolbox.UI"
+        xmlns:pluginSystem="clr-namespace:WPFPluginToolbox.PluginSystem;assembly=WPFPluginToolbox.PluginSystem"
+        mc:Ignorable="d"
+        Title="WPF插件工具箱" Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="5"/>
+            <RowDefinition Height="200" x:Name="DebugRow"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- 工具栏 -->
+        <ToolBar Grid.Row="0">
+            <Button Content="加载插件" Click="LoadPlugins_Click"/>
+            <Button Content="重新加载插件" Click="ReloadPlugins_Click"/>
+            <Button Content="卸载插件" Click="UnloadPlugins_Click"/>
+            <Button Content="导入插件" Click="ImportPlugins_Click"/>
+            <Separator/>
+            <Button Content="打开调试窗口" Click="OpenDebugWindow_Click"/>
+        </ToolBar>
+        
+        <!-- 主内容区域 -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250" MinWidth="20"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- 插件栏容器 -->
+            <Grid Grid.Column="0" x:Name="PluginPanel">
+                <!-- 插件内容区域 -->
+                <Grid x:Name="PluginContent" Background="#F0F0F0">
+                    <!-- 插件列表 -->
+                    <DockPanel Margin="2">
+                        <Label Content="已加载插件" DockPanel.Dock="Top" FontWeight="Bold" Padding="5"/>
+                        <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="卸载插件" Click="UnloadPluginMenuItem_Click"/>
+                                    <MenuItem Header="重载插件" Click="ReloadPluginMenuItem_Click"/>
+                                    <MenuItem Header="导出插件" Click="ExportPluginMenuItem_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="删除插件" Click="DeletePluginMenuItem_Click"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <!-- 默认样式 -->
+                                                <Setter Property="Margin" Value="0,0,0,5"/>
+                                                
+                                                <!-- 根据插件类型设置不同的左边距（缩进） -->
+                                                <Style.Triggers>
+                                                    <!-- 已卸载插件（通过IsLoaded属性判断） -->
+                                                    <DataTrigger Binding="{Binding IsLoaded}" Value="False">
+                                                        <Setter Property="Background" Value="#F0F0F0"/>
+                                                        <Setter Property="Opacity" Value="0.7"/>
+                                                    </DataTrigger>
+                                                    
+                                                    <!-- 主插件（Plugin）类型，无缩进或小缩进 -->
+                                                    <DataTrigger Binding="{Binding Type}" Value="Plugin">
+                                                        <Setter Property="Margin" Value="5,0,0,5"/>
+                                                    </DataTrigger>
+                                                    
+                                                    <!-- 依赖插件（Dependency）类型，更大的缩进 -->
+                                                    <DataTrigger Binding="{Binding Type}" Value="Dependency">
+                                                        <Setter Property="Margin" Value="25,0,0,5"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                            <!-- 显示已卸载状态 -->
+                                            <TextBlock Text=" (已卸载)" FontSize="12" Foreground="Red" Margin="5,0,0,0" Visibility="Collapsed">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsLoaded}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Version}" FontSize="12" Foreground="Gray"/>
+                                        <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,5"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Grid>
+                
+                <!-- 切换按钮 -->
+                <Button Content="→" Click="TogglePluginPanel_Click" Background="#E0E0E0" BorderBrush="Transparent" Padding="0" ToolTip="隐藏插件栏" Width="20" x:Name="ToggleButton" VerticalAlignment="Stretch" HorizontalAlignment="Right"/>
+            </Grid>
+            
+            <!-- 分隔线（可拖动调整插件栏宽度） -->
+            <GridSplitter Grid.Column="1" Width="5" Background="#D0D0D0" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" x:Name="PluginSplitter" VerticalAlignment="Stretch"/>
+            
+            <!-- 插件工作区 -->
+            <Grid Grid.Column="2" Margin="2" Background="White">
+                <ContentControl x:Name="PluginWorkspace"/>
+                <TextBlock Text="请选择一个插件" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="Gray" Visibility="Collapsed" x:Name="NoPluginSelectedText"/>
+            </Grid>
+        </Grid>
+        
+        <!-- 水平分隔线（可拖动调整调试信息窗口高度） -->
+        <GridSplitter Grid.Row="2" Height="5" Background="#D0D0D0" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch"/>
+        
+        <!-- 调试信息区域 -->
+        <DockPanel Grid.Row="3" Background="#F0F0F0" Margin="2" x:Name="DebugPanel">
+            <TextBox x:Name="DebugInfoTextBox" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" Margin="2"/>
+        </DockPanel>
+        
+        <!-- 状态栏 -->
+        <StatusBar Grid.Row="4" Background="#E0E0E0" Height="25">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="就绪" Margin="5,0"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <Button Content="调试信息" Click="ShowDebugPanel_Click" Padding="5,0" Margin="0,0,5,0" ToolTip="显示调试信息面板"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

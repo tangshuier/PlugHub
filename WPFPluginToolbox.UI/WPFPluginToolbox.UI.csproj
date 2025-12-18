@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\WPFPluginToolbox.Core\WPFPluginToolbox.Core.csproj" />
+    <ProjectReference Include="..\WPFPluginToolbox.Services\WPFPluginToolbox.Services.csproj" />
+    <ProjectReference Include="..\WPFPluginToolbox.PluginSystem\WPFPluginToolbox.PluginSystem.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+</Project>

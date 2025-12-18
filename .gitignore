@@ -1,0 +1,46 @@
+# Build outputs
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.assets.json
+*.runtimeconfig.json
+*.xml
+*.resources
+*.licenses
+*.contentfiles.json
+*.symbols.nupkg
+*.nupkg
+
+# IDE files
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.tmp
+*.tmp_proj
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NuGet
+.nuget/
+*.nupkg
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
