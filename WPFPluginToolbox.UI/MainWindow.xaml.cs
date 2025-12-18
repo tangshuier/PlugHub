@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using WPFPluginToolbox.Core;
 using WPFPluginToolbox.PluginSystem;
 using WPFPluginToolbox.Services;
+using WPFPluginToolbox.Services.Models;
 
 namespace WPFPluginToolbox.UI;
 
@@ -13,6 +14,7 @@ namespace WPFPluginToolbox.UI;
 public partial class MainWindow : Window
     {
         private readonly LogService _logService;
+        private readonly SettingsService _settingsService;
         private DebugWindow? _debugWindow;
         private GridLength _lastDebugHeight = new(200);
     
@@ -23,6 +25,9 @@ public partial class MainWindow : Window
         // 初始化日志服务
         _logService = new LogService();
         _logService.LogRecorded += LogService_LogRecorded;
+        
+        // 初始化设置服务
+        _settingsService = new SettingsService();
         
         // 初始化插件管理器
         string pluginsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
@@ -52,9 +57,69 @@ public partial class MainWindow : Window
             _logService.Error($"自动加载插件失败: {ex.Message}");
         }
         
+        // 加载设置并应用主题
+        LoadSettings();
+        
         // 显示初始信息
         _logService.Info("WPF插件工具箱已启动");
         _logService.Info("当前插件目录: " + pluginsDirectory);
+    }
+    
+    /// <summary>
+    /// 加载设置
+    /// </summary>
+    private void LoadSettings()
+    {
+        ToolboxSettings settings = _settingsService.GetSettings();
+        
+        // 应用主题
+        ApplyTheme(settings.Theme);
+        
+        // 如果设置了调试窗口默认打开，则打开调试窗口
+        if (settings.IsDebugWindowDefaultOpen)
+        {
+            OpenDebugWindow_Click(null, null);
+        }
+    }
+    
+    /// <summary>
+    /// 应用主题
+    /// </summary>
+    /// <param name="theme">主题枚举</param>
+    public void ApplyTheme(ToolboxTheme theme)
+    {
+        // 根据主题设置背景色和前景色
+        switch (theme)
+        {
+            case ToolboxTheme.Black:
+                this.Background = System.Windows.Media.Brushes.Black;
+                break;
+            case ToolboxTheme.White:
+                this.Background = System.Windows.Media.Brushes.White;
+                break;
+            case ToolboxTheme.LightBlack:
+                this.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(68, 68, 68));
+                break;
+            case ToolboxTheme.Gray:
+                this.Background = System.Windows.Media.Brushes.Gray;
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// 打开设置界面
+    /// </summary>
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (CheckSettingsChanges())
+        {
+            SettingsWindow settingsView = new SettingsWindow();
+            PluginWorkspace.Content = settingsView;
+            NoPluginSelectedText.Visibility = Visibility.Collapsed;
+            
+            // 清除插件列表的选中状态，以便再次点击同一插件时能触发SelectionChanged事件
+            PluginsListBox.SelectedItem = null;
+        }
     }
     
     /// <summary>
@@ -147,7 +212,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// 打开调试窗口按钮点击事件
     /// </summary>
-    private void OpenDebugWindow_Click(object sender, RoutedEventArgs e)
+    private void OpenDebugWindow_Click(object? sender, RoutedEventArgs? e)
     {
         if (_debugWindow == null || !_debugWindow.IsLoaded)
         {
@@ -203,15 +268,18 @@ public partial class MainWindow : Window
     {
         try
         {
-            var pluginView = plugin.GetMainView();
-            if (pluginView != null)
+            if (CheckSettingsChanges())
             {
-                PluginWorkspace.Content = pluginView;
-                NoPluginSelectedText.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                ClearPluginWorkspace();
+                var pluginView = plugin.GetMainView();
+                if (pluginView != null)
+                {
+                    PluginWorkspace.Content = pluginView;
+                    NoPluginSelectedText.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    ClearPluginWorkspace();
+                }
             }
         }
         catch (Exception ex)
@@ -226,8 +294,17 @@ public partial class MainWindow : Window
     /// </summary>
     private void ClearPluginWorkspace()
     {
-        PluginWorkspace.Content = null;
-        NoPluginSelectedText.Visibility = Visibility.Visible;
+        // 检查当前内容是否是设置页面，如果是则不清除
+        if (PluginWorkspace.Content is SettingsWindow)
+        {
+            return;
+        }
+        
+        if (CheckSettingsChanges())
+        {
+            PluginWorkspace.Content = null;
+            NoPluginSelectedText.Visibility = Visibility.Visible;
+        }
     }
     
     /// <summary>
@@ -643,5 +720,40 @@ public partial class MainWindow : Window
                 // 当前是关闭状态，恢复上一次的高度
                 DebugRow.Height = _lastDebugHeight;
             }
+        }
+        
+        /// <summary>
+        /// 检查设置变更并提示保存
+        /// </summary>
+        /// <returns>是否允许继续操作</returns>
+        private bool CheckSettingsChanges()
+        {
+            // 检查当前内容是否是设置窗口
+            if (PluginWorkspace.Content is SettingsWindow settingsView && settingsView.HasChanges)
+            {
+                // 显示保存提示
+                MessageBoxResult result = MessageBox.Show(
+                    "设置已变更，是否保存？",
+                    "保存设置",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+                
+                switch (result)
+                {
+                    case MessageBoxResult.Yes:
+                        // 保存设置
+                        settingsView.SaveSettings();
+                        return true;
+                    case MessageBoxResult.No:
+                        // 不保存，直接继续
+                        return true;
+                    case MessageBoxResult.Cancel:
+                        // 取消操作
+                        return false;
+                    default:
+                        return true;
+                }
+            }
+            return true;
         }
     }

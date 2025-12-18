@@ -25,6 +25,8 @@
             <Button Content="导入插件" Click="ImportPlugins_Click"/>
             <Separator/>
             <Button Content="打开调试窗口" Click="OpenDebugWindow_Click"/>
+            <Separator/>
+            <Button Content="设置" Click="OpenSettings_Click"/>
         </ToolBar>
         
         <!-- 主内容区域 -->
@@ -115,7 +117,9 @@
             
             <!-- 插件工作区 -->
             <Grid Grid.Column="2" Margin="2" Background="White">
-                <ContentControl x:Name="PluginWorkspace"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <ContentControl x:Name="PluginWorkspace"/>
+                </ScrollViewer>
                 <TextBlock Text="请选择一个插件" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="Gray" Visibility="Collapsed" x:Name="NoPluginSelectedText"/>
             </Grid>
         </Grid>
