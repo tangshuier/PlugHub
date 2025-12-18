@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -321,10 +320,12 @@ public partial class MainWindow : Window
                 try
                 {
                     // 使用SaveFileDialog让用户选择导出路径
-                    Microsoft.Win32.SaveFileDialog saveFileDialog = new();
-                    saveFileDialog.FileName = $"{selectedPluginMetadata.Name}_{selectedPluginMetadata.Version}";
-                    saveFileDialog.DefaultExt = ".dll";
-                    saveFileDialog.Filter = "插件文件 (*.dll)|*.dll|所有文件 (*.*)|*.*";
+                    Microsoft.Win32.SaveFileDialog saveFileDialog = new()
+                    {
+                        FileName = $"{selectedPluginMetadata.Name}_{selectedPluginMetadata.Version}",
+                        DefaultExt = ".dll",
+                        Filter = "插件文件 (*.dll)|*.dll|所有文件 (*.*)|*.*"
+                    };
                     
                     bool? result = saveFileDialog.ShowDialog();
                     if (result == true)
@@ -483,11 +484,13 @@ public partial class MainWindow : Window
             try
             {
                 // 使用OpenFileDialog让用户选择要导入的插件文件
-                Microsoft.Win32.OpenFileDialog openFileDialog = new();
-                openFileDialog.Multiselect = true;
-                openFileDialog.DefaultExt = ".dll";
-                openFileDialog.Filter = "插件文件 (*.dll)|*.dll|所有文件 (*.*)|*.*";
-                openFileDialog.Title = "选择要导入的插件文件";
+                Microsoft.Win32.OpenFileDialog openFileDialog = new()
+                {
+                    Multiselect = true,
+                    DefaultExt = ".dll",
+                    Filter = "插件文件 (*.dll)|*.dll|所有文件 (*.*)|*.*",
+                    Title = "选择要导入的插件文件"
+                };
                 
                 bool? result = openFileDialog.ShowDialog();
                 if (result == true)
@@ -580,8 +583,7 @@ public partial class MainWindow : Window
             if (sender is Button toggleButton)
             {
                 // 获取主内容区域的Grid
-                Grid? mainGrid = PluginPanel.Parent as Grid;
-                if (mainGrid != null && mainGrid.ColumnDefinitions.Count > 0)
+                if (PluginPanel.Parent is Grid mainGrid && mainGrid.ColumnDefinitions.Count > 0)
                 {
                     ColumnDefinition pluginColumn = mainGrid.ColumnDefinitions[0];
                     

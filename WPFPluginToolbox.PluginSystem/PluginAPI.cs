@@ -39,6 +39,14 @@ namespace WPFPluginToolbox.PluginSystem
         private readonly PluginLoader? _pluginLoader;
         
         /// <summary>
+        /// JSON序列化选项，静态实例以重用
+        /// </summary>
+        private static readonly System.Text.Json.JsonSerializerOptions _jsonSerializerOptions = new()
+        {
+            WriteIndented = true
+        };
+        
+        /// <summary>
         /// 配置文件路径
         /// </summary>
         private string ConfigFilePath
@@ -468,10 +476,7 @@ namespace WPFPluginToolbox.PluginSystem
                     Directory.CreateDirectory(ConfigDirectory);
                 }
                 
-                string json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+                string json = System.Text.Json.JsonSerializer.Serialize(config, _jsonSerializerOptions);
                 
                 await File.WriteAllTextAsync(ConfigFilePath, json);
                 Info($"成功保存配置: {ConfigFilePath}");
