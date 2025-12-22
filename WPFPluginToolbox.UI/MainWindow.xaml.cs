@@ -1,11 +1,13 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 using WPFPluginToolbox.Core;
 using WPFPluginToolbox.PluginSystem;
 using WPFPluginToolbox.Services;
 using WPFPluginToolbox.Services.Models;
-
 namespace WPFPluginToolbox.UI;
 
 /// <summary>
@@ -15,55 +17,89 @@ public partial class MainWindow : Window
     {
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
+        private readonly ThemeService _themeService;
         private DebugWindow? _debugWindow;
         private GridLength _lastDebugHeight = new(200);
     
-    public MainWindow()
-    {
-        InitializeComponent();
-        
-        // 初始化日志服务
-        _logService = new LogService();
-        _logService.LogRecorded += LogService_LogRecorded;
-        
-        // 初始化设置服务
-        _settingsService = new SettingsService();
-        
-        // 初始化插件管理器
-        string pluginsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
-        
-        // 创建插件目录如果不存在
-        if (!Directory.Exists(pluginsDirectory))
+        public MainWindow()
         {
-            Directory.CreateDirectory(pluginsDirectory);
-            _logService.Info($"创建了插件目录: {pluginsDirectory}");
+            InitializeComponent();
+            
+            // 添加窗口状态改变事件处理程序
+            this.StateChanged += MainWindow_StateChanged;
+            
+            // 初始化日志服务
+            _logService = new LogService();
+            _logService.LogRecorded += LogService_LogRecorded;
+            
+            // 初始化设置服务
+            _settingsService = new SettingsService();
+            
+            // 初始化主题服务
+            _themeService = new ThemeService(_settingsService);
+            _themeService.ThemeChanged += OnThemeChanged;
+            
+            // 初始化插件管理器
+            string pluginsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
+            
+            // 创建插件目录如果不存在
+            if (!Directory.Exists(pluginsDirectory))
+            {
+                Directory.CreateDirectory(pluginsDirectory);
+                _logService.Info($"创建了插件目录: {pluginsDirectory}");
+            }
+            
+            PluginManager.Initialize(pluginsDirectory, _logService);
+            
+            // 监听插件加载事件
+            PluginManager.Instance.PluginLoaded += Instance_PluginLoaded;
+            PluginManager.Instance.PluginUnloaded += Instance_PluginUnloaded;
+            
+            // 自动加载插件
+            try
+            {
+                PluginManager.Instance.LoadAllPlugins();
+                UpdatePluginsList();
+                _logService.Info("已自动加载所有插件");
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"自动加载插件失败: {ex.Message}");
+            }
+            
+            // 加载设置并应用主题
+            LoadSettings();
+            
+            // 初始化最大化按钮图标
+            UpdateMaximizeButtonIcon();
+            
+            // 显示初始信息
+            _logService.Info("WPF插件工具箱已启动");
+            _logService.Info("当前插件目录: " + pluginsDirectory);
         }
         
-        PluginManager.Initialize(pluginsDirectory, _logService);
-        
-        // 监听插件加载事件
-        PluginManager.Instance.PluginLoaded += Instance_PluginLoaded;
-        PluginManager.Instance.PluginUnloaded += Instance_PluginUnloaded;
-        
-        // 自动加载插件
-        try
+        /// <summary>
+        /// 窗口状态改变事件处理程序
+        /// </summary>
+        private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
-            PluginManager.Instance.LoadAllPlugins();
-            UpdatePluginsList();
-            _logService.Info("已自动加载所有插件");
-        }
-        catch (Exception ex)
-        {
-            _logService.Error($"自动加载插件失败: {ex.Message}");
+            UpdateMaximizeButtonIcon();
         }
         
-        // 加载设置并应用主题
-        LoadSettings();
-        
-        // 显示初始信息
-        _logService.Info("WPF插件工具箱已启动");
-        _logService.Info("当前插件目录: " + pluginsDirectory);
-    }
+        /// <summary>
+        /// 更新最大化按钮图标
+        /// </summary>
+        private void UpdateMaximizeButtonIcon()
+        {
+            if (this.WindowState == WindowState.Maximized)
+            {
+                MaximizeButton.Content = "▢";
+            }
+            else
+            {
+                MaximizeButton.Content = "□";
+            }
+        }
     
     /// <summary>
     /// 加载设置
@@ -81,30 +117,141 @@ public partial class MainWindow : Window
             OpenDebugWindow_Click(null, null);
         }
     }
-    
-    /// <summary>
-    /// 应用主题
-    /// </summary>
-    /// <param name="theme">主题枚举</param>
-    public void ApplyTheme(ToolboxTheme theme)
-    {
-        // 根据主题设置背景色和前景色
-        switch (theme)
+        
+        /// <summary>
+        /// 应用主题
+        /// </summary>
+        /// <param name="theme">主题枚举</param>
+        public void ApplyTheme(ToolboxTheme theme)
         {
-            case ToolboxTheme.Black:
-                this.Background = System.Windows.Media.Brushes.Black;
-                break;
-            case ToolboxTheme.White:
-                this.Background = System.Windows.Media.Brushes.White;
-                break;
-            case ToolboxTheme.LightBlack:
-                this.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(68, 68, 68));
-                break;
-            case ToolboxTheme.Gray:
-                this.Background = System.Windows.Media.Brushes.Gray;
-                break;
+            // 使用主题服务设置主题
+            _themeService.SetTheme(theme);
+            
+            // 应用主题到主窗口
+            this.Background = _themeService.MainBackgroundBrush;
+            this.Foreground = _themeService.MainForegroundBrush;
+            
+            // 应用主题到主要网格
+            if (this.Content is Grid mainGrid)
+            {
+                mainGrid.Background = _themeService.MainBackgroundBrush;
+                
+                // 更新所有分隔线颜色和子元素样式
+                foreach (var child in mainGrid.Children)
+                {
+                    if (child is GridSplitter gridSplitter)
+                    {
+                        gridSplitter.Background = _themeService.BorderBrush;
+                    }
+                    // 更新工具栏样式
+                    else if (child is ToolBar toolBar)
+                    {
+                        ApplyThemeToToolBar(toolBar);
+                    }
+                    // 更新状态栏样式
+                    else if (child is StatusBar statusBar)
+                    {
+                        statusBar.Background = _themeService.ToolBarBackgroundBrush;
+                        statusBar.Foreground = _themeService.MainForegroundBrush;
+                    }
+                }
+            }
+            
+            // 应用主题到插件栏容器
+            PluginPanel.Background = _themeService.PluginPanelBackgroundBrush;
+            
+            // 应用主题到插件内容区域
+            PluginContent.Background = _themeService.PluginPanelBackgroundBrush;
+            
+            // 应用主题到插件列表的DockPanel容器
+            if (PluginContent.Children.Count > 0 && PluginContent.Children[0] is DockPanel dockPanel)
+            {
+                dockPanel.Background = _themeService.PluginPanelBackgroundBrush;
+                
+                // 更新"已加载插件"文字颜色
+                foreach (var child in dockPanel.Children)
+                {
+                    if (child is Label label)
+                    {
+                        label.Foreground = Brushes.White;
+                    }
+                }
+            }
+            
+            // 应用主题到插件列表
+            PluginsListBox.Background = _themeService.PluginPanelBackgroundBrush;
+            PluginsListBox.Foreground = _themeService.MainForegroundBrush;
+            PluginsListBox.BorderBrush = _themeService.BorderBrush;
+            
+            // 更新插件列表项的样式
+            foreach (var item in PluginsListBox.Items)
+            {
+                if (PluginsListBox.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem listBoxItem)
+                {
+                    listBoxItem.Background = _themeService.PluginPanelBackgroundBrush;
+                    listBoxItem.Foreground = _themeService.MainForegroundBrush;
+                }
+            }
+            
+            // 应用主题到插件工作区网格
+            PluginWorkspaceGrid.Background = _themeService.PluginWorkspaceBackgroundBrush;
+            
+            // 应用主题到插件工作区内容
+            PluginWorkspace.Background = _themeService.PluginWorkspaceBackgroundBrush;
+            PluginWorkspace.Foreground = _themeService.MainForegroundBrush;
+            
+            // 应用主题到调试面板
+            DebugPanel.Background = _themeService.DebugPanelBackgroundBrush;
+            
+            // 应用主题到调试信息文本框
+            DebugInfoTextBox.Background = _themeService.DebugPanelBackgroundBrush;
+            DebugInfoTextBox.Foreground = _themeService.MainForegroundBrush;
+            
+            // 更新文本颜色
+            NoPluginSelectedText.Foreground = _themeService.MainForegroundBrush;
+            
+            // 更新切换按钮样式
+            ToggleButton.Background = _themeService.PluginPanelBackgroundBrush;
+            ToggleButton.Foreground = _themeService.MainForegroundBrush;
+            ToggleButton.BorderBrush = _themeService.BorderBrush;
         }
-    }
+        
+        /// <summary>
+        /// 应用主题到工具栏
+        /// </summary>
+        /// <param name="toolBar">工具栏实例</param>
+        private void ApplyThemeToToolBar(ToolBar toolBar)
+        {
+            toolBar.Background = _themeService.ToolBarBackgroundBrush;
+            toolBar.Foreground = _themeService.MainForegroundBrush;
+            
+            // 更新工具栏中的按钮样式
+            foreach (var item in toolBar.Items)
+            {
+                if (item is Button button)
+                {
+                    button.Background = _themeService.ToolBarBackgroundBrush;
+                    button.Foreground = _themeService.MainForegroundBrush;
+                }
+            }
+        }
+        
+
+        
+        /// <summary>
+        /// 主题变更事件处理
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="theme">新主题</param>
+        private void OnThemeChanged(object? sender, ToolboxTheme theme)
+        {
+            // 应用主题到整个窗口
+            ApplyTheme(theme);
+            
+            // 通知所有插件主题变更
+            // 这里可以添加逻辑来通知所有插件主题已变更
+            // 例如，遍历所有插件并调用其API的主题变更事件
+        }
     
     /// <summary>
     /// 打开设置界面
@@ -113,7 +260,7 @@ public partial class MainWindow : Window
     {
         if (CheckSettingsChanges())
         {
-            SettingsWindow settingsView = new SettingsWindow();
+            SettingsWindow settingsView = new();
             PluginWorkspace.Content = settingsView;
             NoPluginSelectedText.Visibility = Visibility.Collapsed;
             
@@ -756,4 +903,61 @@ public partial class MainWindow : Window
             }
             return true;
         }
+        
+        #region 标题栏事件处理
+        
+        /// <summary>
+        /// 标题栏拖拽事件
+        /// </summary>
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                if (this.WindowState == WindowState.Maximized)
+                {
+                    // 如果是最大化状态，先恢复到正常状态，然后再拖拽
+                    this.WindowState = WindowState.Normal;
+                    // 计算鼠标位置，以便拖拽时窗口能正确定位
+                    Point mousePosition = e.GetPosition(this);
+                    this.Left = mousePosition.X - (this.ActualWidth / 2);
+                    this.Top = mousePosition.Y;
+                }
+                this.DragMove();
+            }
+        }
+        
+        /// <summary>
+        /// 最小化按钮点击事件
+        /// </summary>
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+        
+        /// <summary>
+        /// 最大化/还原按钮点击事件
+        /// </summary>
+        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.WindowState == WindowState.Maximized)
+            {
+                this.WindowState = WindowState.Normal;
+                MaximizeButton.Content = "□";
+            }
+            else
+            {
+                this.WindowState = WindowState.Maximized;
+                MaximizeButton.Content = "▢";
+            }
+        }
+        
+        /// <summary>
+        /// 关闭按钮点击事件
+        /// </summary>
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+        
+        #endregion
     }

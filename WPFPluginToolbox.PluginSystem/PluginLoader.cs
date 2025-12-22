@@ -1,7 +1,8 @@
 using System.IO;
-using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using WPFPluginToolbox.Core;
+using LogService = WPFPluginToolbox.Services.LogService;
 
 namespace WPFPluginToolbox.PluginSystem
 {
@@ -163,11 +164,7 @@ namespace WPFPluginToolbox.PluginSystem
         /// 日志记录辅助方法
         /// </summary>
         /// <param name="message">日志消息</param>
-        private void LogDebug(string message)
-        {
-            _logService?.Info(message);
-            Console.WriteLine(message);
-        }
+
         
         /// <summary>
         /// 日志记录辅助方法
@@ -184,13 +181,15 @@ namespace WPFPluginToolbox.PluginSystem
         /// </summary>
         private void InitializeDirectoryWatcher()
         {
-            _directoryWatcher = new FileSystemWatcher(PluginsDirectory);
-            _directoryWatcher.Filter = "*.dll";
-            _directoryWatcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite;
+            _directoryWatcher = new FileSystemWatcher(PluginsDirectory)
+            {
+                Filter = "*.dll",
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                EnableRaisingEvents = true
+            };
             _directoryWatcher.Created += OnPluginFileChanged;
             _directoryWatcher.Deleted += OnPluginFileChanged;
             _directoryWatcher.Changed += OnPluginFileChanged;
-            _directoryWatcher.EnableRaisingEvents = true;
         }
         
         /// <summary>
@@ -234,25 +233,23 @@ namespace WPFPluginToolbox.PluginSystem
                     try
                     {
                         // 使用FileStream加载程序集，设置FileShare.Delete允许文件被删除
-                        using (var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+                        using var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Delete);
+                        if (_pluginLoadContext != null)
                         {
-                            if (_pluginLoadContext != null)
+                            var assembly = _pluginLoadContext.LoadFromStream(fileStream);
+                            
+                            // 查找IDependency类型
+                            var dependencyTypes = assembly.GetTypes()
+                                .Where(type => typeof(IDependency).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+                            
+                            foreach (var dependencyType in dependencyTypes)
                             {
-                                var assembly = _pluginLoadContext.LoadFromStream(fileStream);
-                                
-                                // 查找IDependency类型
-                                var dependencyTypes = assembly.GetTypes()
-                                    .Where(type => typeof(IDependency).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
-                                
-                                foreach (var dependencyType in dependencyTypes)
+                                // 创建依赖实例
+                                if (Activator.CreateInstance(dependencyType) is IDependency dependency && !_loadedDependencies.ContainsKey(dependency.Id))
                                 {
-                                    // 创建依赖实例
-                                    if (Activator.CreateInstance(dependencyType) is IDependency dependency && !_loadedDependencies.ContainsKey(dependency.Id))
-                                    {
-                                        dependency.Initialize();
-                                        _loadedDependencies[dependency.Id] = dependency;
-                                        Console.WriteLine($"Loaded dependency: {dependency.Name} ({dependency.Version})");
-                                    }
+                                    dependency.Initialize();
+                                    _loadedDependencies[dependency.Id] = dependency;
+                                    Console.WriteLine($"Loaded dependency: {dependency.Name} ({dependency.Version})");
                                 }
                             }
                         }
@@ -284,70 +281,68 @@ namespace WPFPluginToolbox.PluginSystem
                     try
                     {
                         // 使用FileStream加载程序集，设置FileShare.Delete允许文件被删除
-                        using (var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+                        using var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                        if (_pluginLoadContext != null)
                         {
-                            if (_pluginLoadContext != null)
+                            var assembly = _pluginLoadContext.LoadFromStream(fileStream);
+                            
+                            // 查找IPlugin类型
+                            var pluginTypes = assembly.GetTypes()
+                                .Where(type => typeof(IPlugin).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+                            
+                            foreach (var pluginType in pluginTypes)
                             {
-                                var assembly = _pluginLoadContext.LoadFromStream(fileStream);
-                                
-                                // 查找IPlugin类型
-                                var pluginTypes = assembly.GetTypes()
-                                    .Where(type => typeof(IPlugin).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
-                                
-                                foreach (var pluginType in pluginTypes)
+                                // 创建插件实例
+                                if (Activator.CreateInstance(pluginType) is IPlugin plugin && !_loadedPlugins.ContainsKey(plugin.Id))
                                 {
-                                    // 创建插件实例
-                                    if (Activator.CreateInstance(pluginType) is IPlugin plugin && !_loadedPlugins.ContainsKey(plugin.Id))
+                                    // 检查插件依赖
+                                    if (CheckPluginDependencies())
                                     {
-                                        // 检查插件依赖
-                                        if (CheckPluginDependencies(plugin))
+                                        // 创建插件API实例，传入插件加载器引用
+                                        var pluginApi = new PluginAPI(this);
+                                        
+                                        // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
+                                        pluginApi.DebugInfoGenerated += (sender, e) =>
                                         {
-                                            // 创建插件API实例，传入插件加载器引用
-                                            var pluginApi = new PluginAPI(this);
-                                            
-                                            // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
-                                            pluginApi.DebugInfoGenerated += (sender, e) =>
+                                            string logMessage = $"[{plugin.Name}] {e.Message}";
+                                            switch (e.Level)
                                             {
-                                                string logMessage = $"[{plugin.Name}] {e.Message}";
-                                                switch (e.Level)
-                                                {
-                                                    case DebugLevel.Debug:
-                                                        _logService?.Debug(logMessage);
-                                                        break;
-                                                    case DebugLevel.Info:
-                                                        _logService?.Info(logMessage);
-                                                        break;
-                                                    case DebugLevel.Warning:
-                                                        _logService?.Warning(logMessage);
-                                                        break;
-                                                    case DebugLevel.Error:
-                                                        _logService?.Error(logMessage);
-                                                        break;
-                                                }
-                                            };
-                                            
-                                            // 设置插件API的基本信息
-                                            pluginApi.PluginId = plugin.Id;
-                                            pluginApi.PluginName = plugin.Name;
-                                            pluginApi.PluginPath = dllFile;
-                                            
-                                            _pluginApis[plugin.Id] = pluginApi;
-                                            
-                                            // 初始化并激活插件
-                                            plugin.Initialize(pluginApi);
-                                            plugin.Activate();
-                                            
-                                            _loadedPlugins[plugin.Id] = plugin;
-                                            
-                                            // 记录插件对应的原始.dll文件路径
-                                            _pluginFilePaths[plugin.Id] = dllFile;
-                                            
-                                            Console.WriteLine($"Loaded plugin: {plugin.Name} ({plugin.Version}) from {dllFile}");
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Failed to load plugin {plugin.Name}: Missing required dependencies");
-                                        }
+                                                case DebugLevel.Debug:
+                                                    _logService?.Debug(logMessage);
+                                                    break;
+                                                case DebugLevel.Info:
+                                                    _logService?.Info(logMessage);
+                                                    break;
+                                                case DebugLevel.Warning:
+                                                    _logService?.Warning(logMessage);
+                                                    break;
+                                                case DebugLevel.Error:
+                                                    _logService?.Error(logMessage);
+                                                    break;
+                                            }
+                                        };
+                                        
+                                        // 设置插件API的基本信息
+                                        pluginApi.PluginId = plugin.Id;
+                                        pluginApi.PluginName = plugin.Name;
+                                        pluginApi.PluginPath = dllFile;
+                                        
+                                        _pluginApis[plugin.Id] = pluginApi;
+                                        
+                                        // 初始化并激活插件
+                                        plugin.Initialize(pluginApi);
+                                        plugin.Activate();
+                                        
+                                        _loadedPlugins[plugin.Id] = plugin;
+                                        
+                                        // 记录插件对应的原始.dll文件路径
+                                        _pluginFilePaths[plugin.Id] = dllFile;
+                                        
+                                        Console.WriteLine($"Loaded plugin: {plugin.Name} ({plugin.Version}) from {dllFile}");
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Failed to load plugin {plugin.Name}: Missing required dependencies");
                                     }
                                 }
                             }
@@ -368,9 +363,8 @@ namespace WPFPluginToolbox.PluginSystem
         /// <summary>
         /// 检查插件依赖
         /// </summary>
-        /// <param name="plugin">插件实例</param>
         /// <returns>是否满足所有必要依赖</returns>
-        private static bool CheckPluginDependencies(IPlugin plugin)
+        private static bool CheckPluginDependencies()
         {
             // 当前实现：总是返回true，让插件在Initialize方法中自行检测依赖
             // 这样可以保持兼容性，同时让插件有更大的灵活性来处理依赖
@@ -411,71 +405,69 @@ namespace WPFPluginToolbox.PluginSystem
             try
             {
                 // 使用FileStream加载程序集，设置FileShare.Delete允许文件被删除
-                using (var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+                using var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                if (_pluginLoadContext != null)
                 {
-                    if (_pluginLoadContext != null)
+                    var assembly = _pluginLoadContext.LoadFromStream(fileStream);
+                    
+                    // 查找IPlugin类型
+                    var pluginTypes = assembly.GetTypes()
+                        .Where(type => typeof(IPlugin).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+                    
+                    foreach (var pluginType in pluginTypes)
                     {
-                        var assembly = _pluginLoadContext.LoadFromStream(fileStream);
-                        
-                        // 查找IPlugin类型
-                        var pluginTypes = assembly.GetTypes()
-                            .Where(type => typeof(IPlugin).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
-                        
-                        foreach (var pluginType in pluginTypes)
+                        // 创建插件实例
+                        if (Activator.CreateInstance(pluginType) is IPlugin plugin && !_loadedPlugins.ContainsKey(plugin.Id))
                         {
-                            // 创建插件实例
-                            if (Activator.CreateInstance(pluginType) is IPlugin plugin && !_loadedPlugins.ContainsKey(plugin.Id))
+                            // 检查插件依赖
+                            if (CheckPluginDependencies())
                             {
-                                // 检查插件依赖
-                                if (CheckPluginDependencies(plugin))
+                                // 创建插件API实例，传入插件加载器引用
+                                var pluginApi = new PluginAPI(this);
+                                
+                                // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
+                                pluginApi.DebugInfoGenerated += (sender, e) =>
                                 {
-                                    // 创建插件API实例，传入插件加载器引用
-                                    var pluginApi = new PluginAPI(this);
-                                    
-                                    // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
-                                    pluginApi.DebugInfoGenerated += (sender, e) =>
+                                    string logMessage = $"[{plugin.Name}] {e.Message}";
+                                    switch (e.Level)
                                     {
-                                        string logMessage = $"[{plugin.Name}] {e.Message}";
-                                        switch (e.Level)
-                                        {
-                                            case DebugLevel.Debug:
-                                                _logService?.Debug(logMessage);
-                                                break;
-                                            case DebugLevel.Info:
-                                                _logService?.Info(logMessage);
-                                                break;
-                                            case DebugLevel.Warning:
-                                                _logService?.Warning(logMessage);
-                                                break;
-                                            case DebugLevel.Error:
-                                                _logService?.Error(logMessage);
-                                                break;
-                                        }
-                                    };
-                                    
-                                    // 设置插件API的基本信息
-                                    pluginApi.PluginId = plugin.Id;
-                                    pluginApi.PluginName = plugin.Name;
-                                    pluginApi.PluginPath = dllFile;
-                                    
-                                    _pluginApis[plugin.Id] = pluginApi;
-                                    
-                                    // 初始化并激活插件
-                                    plugin.Initialize(pluginApi);
-                                    plugin.Activate();
-                                    
-                                    _loadedPlugins[plugin.Id] = plugin;
-                                    
-                                    // 记录插件对应的原始.dll文件路径
-                                    _pluginFilePaths[plugin.Id] = dllFile;
-                                    
-                                    Console.WriteLine($"Loaded plugin: {plugin.Name} ({plugin.Version}) from {dllFile}");
-                                    return true;
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"Failed to load plugin {plugin.Name}: Missing required dependencies");
-                                }
+                                        case DebugLevel.Debug:
+                                            _logService?.Debug(logMessage);
+                                            break;
+                                        case DebugLevel.Info:
+                                            _logService?.Info(logMessage);
+                                            break;
+                                        case DebugLevel.Warning:
+                                            _logService?.Warning(logMessage);
+                                            break;
+                                        case DebugLevel.Error:
+                                            _logService?.Error(logMessage);
+                                            break;
+                                    }
+                                };
+                                
+                                // 设置插件API的基本信息
+                                pluginApi.PluginId = plugin.Id;
+                                pluginApi.PluginName = plugin.Name;
+                                pluginApi.PluginPath = dllFile;
+                                
+                                _pluginApis[plugin.Id] = pluginApi;
+                                
+                                // 初始化并激活插件
+                                plugin.Initialize(pluginApi);
+                                plugin.Activate();
+                                
+                                _loadedPlugins[plugin.Id] = plugin;
+                                
+                                // 记录插件对应的原始.dll文件路径
+                                _pluginFilePaths[plugin.Id] = dllFile;
+                                
+                                Console.WriteLine($"Loaded plugin: {plugin.Name} ({plugin.Version}) from {dllFile}");
+                                return true;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Failed to load plugin {plugin.Name}: Missing required dependencies");
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using WPFPluginToolbox.Core;
 using WPFPluginToolbox.Services.Models;
 
 namespace WPFPluginToolbox.Services
@@ -72,7 +73,7 @@ namespace WPFPluginToolbox.Services
         /// 获取默认设置
         /// </summary>
         /// <returns>默认设置</returns>
-        private ToolboxSettings GetDefaultSettings()
+        private static ToolboxSettings GetDefaultSettings()
         {
             return new ToolboxSettings
             {

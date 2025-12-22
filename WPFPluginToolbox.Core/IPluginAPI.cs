@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace WPFPluginToolbox.Core
 {
@@ -191,6 +192,35 @@ namespace WPFPluginToolbox.Core
         /// </summary>
         /// <returns>是否存在配置文件</returns>
         bool HasConfig();
+        
+        #endregion
+        
+        #region 主题相关
+        
+        /// <summary>
+        /// 获取当前主题
+        /// </summary>
+        ToolboxTheme CurrentTheme { get; }
+        
+        /// <summary>
+        /// 获取当前主题的背景色
+        /// </summary>
+        Brush CurrentBackgroundBrush { get; }
+        
+        /// <summary>
+        /// 获取当前主题的前景色
+        /// </summary>
+        Brush CurrentForegroundBrush { get; }
+        
+        /// <summary>
+        /// 主题变更事件
+        /// </summary>
+        event EventHandler<ToolboxTheme>? ThemeChanged;
+        
+        /// <summary>
+        /// 指示插件是否同步工具箱主题
+        /// </summary>
+        bool SyncToolboxTheme { get; set; }
         
         #endregion
     }

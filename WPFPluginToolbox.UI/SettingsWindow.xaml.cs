@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using WPFPluginToolbox.Core;
 using WPFPluginToolbox.Services;
 using WPFPluginToolbox.Services.Models;
 

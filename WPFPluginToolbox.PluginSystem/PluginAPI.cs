@@ -3,7 +3,10 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using WPFPluginToolbox.Core;
+using WPFPluginToolbox.Services;
+using WPFPluginToolbox.Services.Models;
 
 namespace WPFPluginToolbox.PluginSystem
 {
@@ -56,6 +59,21 @@ namespace WPFPluginToolbox.PluginSystem
                 return Path.Combine(ConfigDirectory, "config.json");
             }
         }
+        
+        /// <summary>
+        /// 主题服务实例
+        /// </summary>
+        private static ThemeService? _themeService;
+        
+        /// <summary>
+        /// 跟踪所有PluginAPI实例
+        /// </summary>
+        private static readonly List<PluginAPI> _instances = new List<PluginAPI>();
+        
+        /// <summary>
+        /// 插件是否同步工具箱主题
+        /// </summary>
+        private bool _syncToolboxTheme = true;
 
         #endregion
 
@@ -71,6 +89,12 @@ namespace WPFPluginToolbox.PluginSystem
             PluginName = string.Empty;
             PluginPath = string.Empty;
             _pluginLoader = null;
+            
+            // 添加实例到静态列表
+            lock (_instances)
+            {
+                _instances.Add(this);
+            }
         }
 
         /// <summary>
@@ -80,6 +104,18 @@ namespace WPFPluginToolbox.PluginSystem
         public PluginAPI(PluginLoader pluginLoader) : this()
         {
             _pluginLoader = pluginLoader;
+        }
+        
+        /// <summary>
+        /// 析构函数
+        /// </summary>
+        ~PluginAPI()
+        {
+            // 从静态列表中移除实例
+            lock (_instances)
+            {
+                _instances.Remove(this);
+            }
         }
 
         #endregion
@@ -509,6 +545,96 @@ namespace WPFPluginToolbox.PluginSystem
             DebugInfoGenerated?.Invoke(this, new DebugInfoEventArgs { Message = message, Level = level, Timestamp = DateTime.Now });
         }
 
+        #endregion
+        
+        #region 主题相关
+        
+        /// <summary>
+        /// 主题变更事件
+        /// </summary>
+        public event EventHandler<ToolboxTheme>? ThemeChanged;
+        
+        /// <summary>
+        /// 获取当前主题
+        /// </summary>
+        public ToolboxTheme CurrentTheme
+        {
+            get
+            {
+                // 初始化主题服务（如果未初始化）
+                InitializeThemeService();
+                return _themeService?.CurrentTheme ?? ToolboxTheme.Black;
+            }
+        }
+        
+        /// <summary>
+        /// 获取当前主题的主背景色
+        /// </summary>
+        public Brush CurrentBackgroundBrush
+        {
+            get
+            {
+                // 初始化主题服务（如果未初始化）
+                InitializeThemeService();
+                return _themeService?.MainBackgroundBrush ?? Brushes.Black;
+            }
+        }
+        
+        /// <summary>
+        /// 获取当前主题的主前景色
+        /// </summary>
+        public Brush CurrentForegroundBrush
+        {
+            get
+            {
+                // 初始化主题服务（如果未初始化）
+                InitializeThemeService();
+                return _themeService?.MainForegroundBrush ?? Brushes.White;
+            }
+        }
+        
+        /// <summary>
+        /// 指示插件是否同步工具箱主题
+        /// </summary>
+        public bool SyncToolboxTheme
+        {
+            get => _syncToolboxTheme;
+            set => _syncToolboxTheme = value;
+        }
+        
+        /// <summary>
+        /// 初始化主题服务
+        /// </summary>
+        private static void InitializeThemeService()
+        {
+            if (_themeService == null)
+            {
+                // 创建主题服务实例
+                var settingsService = new SettingsService();
+                _themeService = new ThemeService(settingsService);
+                
+                // 订阅主题变更事件
+                _themeService.ThemeChanged += OnThemeChanged;
+            }
+        }
+        
+        /// <summary>
+        /// 主题变更事件处理
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="theme">新主题</param>
+        private static void OnThemeChanged(object? sender, ToolboxTheme theme)
+        {
+            // 遍历所有PluginAPI实例，触发它们的ThemeChanged事件
+            lock (_instances)
+            {
+                foreach (var instance in _instances.ToList())
+                {
+                    instance.ThemeChanged?.Invoke(sender, theme);
+                }
+            }
+        }
+        
         #endregion
 
         /// <summary>
