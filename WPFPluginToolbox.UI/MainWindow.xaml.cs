@@ -2,13 +2,38 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using WPFPluginToolbox.Core;
 using WPFPluginToolbox.PluginSystem;
 using WPFPluginToolbox.Services;
 using WPFPluginToolbox.Services.Models;
 namespace WPFPluginToolbox.UI;
+
+/// <summary>
+/// 转换器：根据滚动条方向返回IsDirectionReversed值
+/// </summary>
+public class OrientationToDirectionReversedConverter : MarkupExtension, IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        // 对于垂直滚动条，返回true，确保滚动方向正确
+        // 对于水平滚动条，返回false，保持默认行为
+        return value is Orientation orientation && orientation == Orientation.Vertical;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override object ProvideValue(IServiceProvider serviceProvider)
+    {
+        return this;
+    }
+}
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
@@ -131,6 +156,33 @@ public partial class MainWindow : Window
             this.Background = _themeService.MainBackgroundBrush;
             this.Foreground = _themeService.MainForegroundBrush;
             
+            // 应用主题到自定义标题栏
+            TitleBar.Background = _themeService.ToolBarBackgroundBrush;
+            
+            // 更新标题栏中的TextBlock颜色
+            foreach (var child in TitleBar.Children)
+            {
+                if (child is Border border)
+                {
+                    // Border只有一个Child属性，没有Children集合
+                    if (border.Child is TextBlock textBlock)
+                    {
+                        textBlock.Foreground = _themeService.MainForegroundBrush;
+                    }
+                }
+                else if (child is StackPanel stackPanel)
+                {
+                    // 更新标题栏按钮颜色
+                    foreach (var button in stackPanel.Children)
+                    {
+                        if (button is Button btn)
+                        {
+                            btn.Foreground = _themeService.MainForegroundBrush;
+                        }
+                    }
+                }
+            }
+            
             // 应用主题到主要网格
             if (this.Content is Grid mainGrid)
             {
@@ -153,6 +205,17 @@ public partial class MainWindow : Window
                     {
                         statusBar.Background = _themeService.ToolBarBackgroundBrush;
                         statusBar.Foreground = _themeService.MainForegroundBrush;
+                    }
+                    // 更新主内容区域网格中的分隔线
+                    else if (child is Grid contentGrid)
+                    {
+                        foreach (var contentChild in contentGrid.Children)
+                        {
+                            if (contentChild is GridSplitter contentGridSplitter)
+                            {
+                                contentGridSplitter.Background = _themeService.BorderBrush;
+                            }
+                        }
                     }
                 }
             }
@@ -296,11 +359,42 @@ public partial class MainWindow : Window
     /// </summary>
     private void LogService_LogRecorded(object? sender, LogEntry e)
     {
-        Dispatcher.Invoke(() =>
+        try
         {
-            DebugInfoTextBox.AppendText(e.ToString() + Environment.NewLine);
-            DebugInfoTextBox.ScrollToEnd();
-        });
+            // 只检查Dispatcher状态，不访问UI属性，避免跨线程访问异常
+            if (!this.Dispatcher.HasShutdownStarted && !this.Dispatcher.HasShutdownFinished)
+            {
+                // 使用BeginInvoke异步更新UI，避免阻塞日志线程
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // 在UI线程中再次检查DebugInfoTextBox是否可用
+                        if (DebugInfoTextBox != null && this.IsLoaded)
+                        {
+                            DebugInfoTextBox.AppendText(e.ToString() + Environment.NewLine);
+                            DebugInfoTextBox.ScrollToEnd();
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // 忽略UI元素不可用异常
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // 忽略任务取消异常，这是正常的程序关闭行为
+        }
+        catch (InvalidOperationException)
+        {
+            // 忽略调度器已关闭异常
+        }
+        catch (Exception)
+        {
+            // 忽略其他所有异常，确保程序能正常关闭
+        }
     }
     
     /// <summary>
@@ -960,4 +1054,13 @@ public partial class MainWindow : Window
         }
         
         #endregion
+        
+        /// <summary>
+        /// 获取主题服务实例，供设置窗口使用
+        /// </summary>
+        /// <returns>主题服务实例</returns>
+        public ThemeService GetThemeService()
+        {
+            return _themeService;
+        }
     }
