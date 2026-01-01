@@ -103,6 +103,41 @@ namespace WPFPluginToolbox.UI
         }
         
         /// <summary>
+        /// 恢复原始设置
+        /// </summary>
+        public void RevertSettings()
+        {
+            // 恢复原始主题设置
+            _settings = _originalSettings;
+            
+            // 恢复主题选择
+            switch (_settings.Theme)
+            {
+                case ToolboxTheme.Black:
+                    BlackThemeRadio.IsChecked = true;
+                    break;
+                case ToolboxTheme.White:
+                    WhiteThemeRadio.IsChecked = true;
+                    break;
+                case ToolboxTheme.LightBlack:
+                    LightBlackThemeRadio.IsChecked = true;
+                    break;
+                case ToolboxTheme.Gray:
+                    GrayThemeRadio.IsChecked = true;
+                    break;
+            }
+            
+            // 恢复调试窗口默认打开选项
+            DebugWindowDefaultOpenCheck.IsChecked = _settings.IsDebugWindowDefaultOpen;
+            
+            // 应用原始主题
+            ApplyTheme(_settings.Theme);
+            
+            // 重置变更标志
+            HasChanges = false;
+        }
+        
+        /// <summary>
         /// 添加设置变更事件处理
         /// </summary>
         private void AddSettingsChangeHandlers()
@@ -124,6 +159,25 @@ namespace WPFPluginToolbox.UI
         private void SettingsChanged(object sender, RoutedEventArgs e)
         {
             HasChanges = true;
+            
+            // 如果是主题选择变更，立即应用主题进行预览，但不保存到设置文件
+            if (sender is RadioButton)
+            {
+                // 获取当前选中的主题
+                ToolboxTheme selectedTheme = _settings.Theme; // 默认使用当前设置的主题
+                
+                if (BlackThemeRadio.IsChecked == true)
+                    selectedTheme = ToolboxTheme.Black;
+                else if (WhiteThemeRadio.IsChecked == true)
+                    selectedTheme = ToolboxTheme.White;
+                else if (LightBlackThemeRadio.IsChecked == true)
+                    selectedTheme = ToolboxTheme.LightBlack;
+                else if (GrayThemeRadio.IsChecked == true)
+                    selectedTheme = ToolboxTheme.Gray;
+                
+                // 立即应用主题进行预览
+                ApplyTheme(selectedTheme);
+            }
         }
         
         /// <summary>

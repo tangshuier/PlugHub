@@ -78,7 +78,11 @@ namespace WPFPluginToolbox.Services
             return new ToolboxSettings
             {
                 Theme = ToolboxTheme.Black,
-                IsDebugWindowDefaultOpen = false
+                IsDebugWindowDefaultOpen = false,
+                MainWindowWidth = 1200,
+                MainWindowHeight = 700,
+                IsDebugPanelVisible = true,
+                IsPluginPanelVisible = true
             };
         }
     }

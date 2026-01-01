@@ -52,6 +52,8 @@ public partial class MainWindow : Window
             
             // 添加窗口状态改变事件处理程序
             this.StateChanged += MainWindow_StateChanged;
+            // 添加窗口关闭事件处理程序，用于保存窗口大小
+            this.Closing += MainWindow_Closing;
             
             // 初始化日志服务
             _logService = new LogService();
@@ -136,11 +138,63 @@ public partial class MainWindow : Window
         // 应用主题
         ApplyTheme(settings.Theme);
         
+        // 应用窗口大小
+        if (settings.MainWindowWidth > 0 && settings.MainWindowHeight > 0)
+        {
+            this.Width = settings.MainWindowWidth;
+            this.Height = settings.MainWindowHeight;
+        }
+        
+        // 应用调试信息面板状态
+        if (!settings.IsDebugPanelVisible)
+        {
+            // 如果设置为隐藏，调用ToggleDebugPanel方法隐藏面板
+            ToggleDebugPanel();
+        }
+        
+        // 应用插件栏状态
+        if (!settings.IsPluginPanelVisible)
+        {
+            // 如果设置为隐藏，调用TogglePluginPanel方法隐藏插件栏
+            // 直接模拟点击切换按钮的效果
+            TogglePluginPanel();
+        }
+        
         // 如果设置了调试窗口默认打开，则打开调试窗口
         if (settings.IsDebugWindowDefaultOpen)
         {
             OpenDebugWindow_Click(null, null);
         }
+    }
+    
+    /// <summary>
+    /// 窗口关闭事件处理程序，用于保存窗口大小、调试信息面板状态和插件栏状态
+    /// </summary>
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // 获取当前设置
+        ToolboxSettings settings = _settingsService.GetSettings();
+        
+        // 只在窗口处于正常状态时保存大小，避免保存最大化/最小化状态下的大小
+        if (this.WindowState == WindowState.Normal)
+        {
+            // 更新窗口大小
+            settings.MainWindowWidth = this.ActualWidth;
+            settings.MainWindowHeight = this.ActualHeight;
+            
+            _logService.Info($"保存窗口大小: {settings.MainWindowWidth}x{settings.MainWindowHeight}");
+        }
+        
+        // 保存调试信息面板状态
+        settings.IsDebugPanelVisible = DebugRow.Height.Value > 0;
+        _logService.Info($"保存调试信息面板状态: {settings.IsDebugPanelVisible}");
+        
+        // 保存插件栏状态
+        settings.IsPluginPanelVisible = PluginContent.Visibility == Visibility.Visible;
+        _logService.Info($"保存插件栏状态: {settings.IsPluginPanelVisible}");
+        
+        // 保存设置
+        _settingsService.SaveSettings(settings);
     }
         
         /// <summary>
@@ -898,31 +952,36 @@ public partial class MainWindow : Window
         /// </summary>
         private void TogglePluginPanel_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button toggleButton)
+            TogglePluginPanel();
+        }
+        
+        /// <summary>
+        /// 切换插件栏显示/隐藏状态的核心逻辑
+        /// </summary>
+        private void TogglePluginPanel()
+        {
+            // 获取主内容区域的Grid
+            if (PluginPanel.Parent is Grid mainGrid && mainGrid.ColumnDefinitions.Count > 0)
             {
-                // 获取主内容区域的Grid
-                if (PluginPanel.Parent is Grid mainGrid && mainGrid.ColumnDefinitions.Count > 0)
+                ColumnDefinition pluginColumn = mainGrid.ColumnDefinitions[0];
+                
+                if (PluginContent.Visibility == Visibility.Visible)
                 {
-                    ColumnDefinition pluginColumn = mainGrid.ColumnDefinitions[0];
-                    
-                    if (PluginContent.Visibility == Visibility.Visible)
-                    {
-                        // 隐藏插件内容：只隐藏插件内容，保持切换按钮可见
-                        PluginContent.Visibility = Visibility.Collapsed;
-                        toggleButton.Content = "←";
-                        toggleButton.ToolTip = "显示插件栏";
-                        // 将插件栏宽度调整为只显示按钮
-                        pluginColumn.Width = new GridLength(20);
-                    }
-                    else
-                    {
-                        // 显示插件内容：恢复插件内容显示
-                        PluginContent.Visibility = Visibility.Visible;
-                        toggleButton.Content = "→";
-                        toggleButton.ToolTip = "隐藏插件栏";
-                        // 将插件栏宽度恢复到默认值
-                        pluginColumn.Width = new GridLength(250);
-                    }
+                    // 隐藏插件内容：只隐藏插件内容，保持切换按钮可见
+                    PluginContent.Visibility = Visibility.Collapsed;
+                    ToggleButton.Content = "←";
+                    ToggleButton.ToolTip = "显示插件栏";
+                    // 将插件栏宽度调整为只显示按钮
+                    pluginColumn.Width = new GridLength(20);
+                }
+                else
+                {
+                    // 显示插件内容：恢复插件内容显示
+                    PluginContent.Visibility = Visibility.Visible;
+                    ToggleButton.Content = "→";
+                    ToggleButton.ToolTip = "隐藏插件栏";
+                    // 将插件栏宽度恢复到默认值
+                    pluginColumn.Width = new GridLength(250);
                 }
             }
         }
@@ -986,7 +1045,8 @@ public partial class MainWindow : Window
                         settingsView.SaveSettings();
                         return true;
                     case MessageBoxResult.No:
-                        // 不保存，直接继续
+                        // 不保存，恢复原始设置
+                        settingsView.RevertSettings();
                         return true;
                     case MessageBoxResult.Cancel:
                         // 取消操作

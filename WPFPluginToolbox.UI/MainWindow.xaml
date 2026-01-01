@@ -15,7 +15,7 @@
             CaptionHeight="0"
             ResizeBorderThickness="5"
             GlassFrameThickness="0"
-            CornerRadius="0"
+            CornerRadius="8"
             UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     
@@ -269,7 +269,7 @@
                 <TextBlock x:Name="StatusText" Text="就绪" Margin="5,0"/>
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
-                <Button Content="调试信息" Click="ShowDebugPanel_Click" Padding="5,0" Margin="0,0,5,0" ToolTip="显示调试信息面板"/>
+                <Button Content="调试信息" Click="ShowDebugPanel_Click" Padding="5,0" Margin="0,0,15,0" ToolTip="显示调试信息面板"/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
