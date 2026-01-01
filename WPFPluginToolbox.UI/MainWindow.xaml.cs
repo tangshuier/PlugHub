@@ -373,6 +373,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
             
+            // 更新插件列表的右键菜单样式
+            // 注意：ContextMenu只有在显示时才会创建，所以这里无法直接获取
+            // 我们需要确保样式绑定正确，或者在ContextMenu显示时更新
+            
             // 应用主题到调试面板
             DebugPanel.Background = _themeService.DebugPanelBackgroundBrush;
             
@@ -878,7 +882,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                             {
                                 _logService.Info($"=== 删除插件成功 ===");
                                 UpdatePluginsList();
-                                ClearPluginWorkspace();
+                                
+                                // 关闭所有与被删除插件相关的标签页
+                                var pluginId = selectedPluginMetadata.Id;
+                                var tabsToRemove = PluginWorkspaceTabs.Items.Cast<PluginTabItem>()
+                                    .Where(tab => tab.PluginId == pluginId)
+                                    .ToList();
+                                
+                                foreach (var tab in tabsToRemove)
+                                {
+                                    PluginWorkspaceTabs.Items.Remove(tab);
+                                }
+                                
+                                // 如果没有标签页了，显示提示文本
+                                if (PluginWorkspaceTabs.Items.Count == 0)
+                                {
+                                    NoPluginSelectedText.Visibility = Visibility.Visible;
+                                }
                             }
                             else
                             {
