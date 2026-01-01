@@ -255,6 +255,16 @@ namespace WPFPluginToolbox.PluginSystem
         {
             return _pluginLoader.GetAllPlugins();
         }
+        
+        /// <summary>
+        /// 根据插件ID获取插件元数据
+        /// </summary>
+        /// <param name="pluginId">插件ID</param>
+        /// <returns>插件元数据，不存在则返回null</returns>
+        public PluginMetadata? GetPluginMetadataById(string pluginId)
+        {
+            return GetAllPlugins().FirstOrDefault(p => p.Id == pluginId);
+        }
     }
     
     /// <summary>

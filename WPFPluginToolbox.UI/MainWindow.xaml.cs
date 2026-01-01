@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -36,15 +38,39 @@ public class OrientationToDirectionReversedConverter : MarkupExtension, IValueCo
 }
 
 /// <summary>
+/// 插件标签页项，用于管理多标签页中的插件实例
+/// </summary>
+public class PluginTabItem
+{
+    public required string Title { get; set; }
+    public required object Content { get; set; }
+    public required string PluginId { get; set; }
+    public PluginMetadata? Metadata { get; set; }
+}
+
+/// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
         private readonly ThemeService _themeService;
         private DebugWindow? _debugWindow;
         private GridLength _lastDebugHeight = new(200);
+        
+        /// <summary>
+        /// 属性变化事件
+        /// </summary>
+        public event PropertyChangedEventHandler? PropertyChanged;
+        
+        /// <summary>
+        /// 触发属性变化事件
+        /// </summary>
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     
         public MainWindow()
         {
@@ -313,9 +339,39 @@ public partial class MainWindow : Window
             // 应用主题到插件工作区网格
             PluginWorkspaceGrid.Background = _themeService.PluginWorkspaceBackgroundBrush;
             
-            // 应用主题到插件工作区内容
-            PluginWorkspace.Background = _themeService.PluginWorkspaceBackgroundBrush;
-            PluginWorkspace.Foreground = _themeService.MainForegroundBrush;
+            // 应用主题到插件标签页控件
+            PluginWorkspaceTabs.Background = _themeService.PluginWorkspaceBackgroundBrush;
+            PluginWorkspaceTabs.Foreground = _themeService.MainForegroundBrush;
+            PluginWorkspaceTabs.BorderBrush = _themeService.BorderBrush;
+            
+            // 更新所有标签页的样式
+            for (int i = 0; i < PluginWorkspaceTabs.Items.Count; i++)
+            {
+                var tabItem = PluginWorkspaceTabs.ItemContainerGenerator.ContainerFromIndex(i) as TabItem;
+                if (tabItem != null)
+                {
+                    // 设置标签页背景和前景色
+                    tabItem.Background = _themeService.PluginWorkspaceBackgroundBrush;
+                    tabItem.Foreground = _themeService.MainForegroundBrush;
+                    tabItem.BorderBrush = _themeService.BorderBrush;
+                    
+                    // 更新标签页标题中的文本和按钮颜色
+                    if (tabItem.Header is DockPanel tabDockPanel)
+                    {
+                        foreach (var child in tabDockPanel.Children)
+                        {
+                            if (child is TextBlock textBlock)
+                            {
+                                textBlock.Foreground = _themeService.MainForegroundBrush;
+                            }
+                            else if (child is Button button)
+                            {
+                                button.Foreground = _themeService.MainForegroundBrush;
+                            }
+                        }
+                    }
+                }
+            }
             
             // 应用主题到调试面板
             DebugPanel.Background = _themeService.DebugPanelBackgroundBrush;
@@ -365,6 +421,12 @@ public partial class MainWindow : Window
             // 应用主题到整个窗口
             ApplyTheme(theme);
             
+            // 通知UI主题属性已变更
+            OnPropertyChanged(nameof(MainBackgroundBrush));
+            OnPropertyChanged(nameof(MainForegroundBrush));
+            OnPropertyChanged(nameof(PluginWorkspaceBackgroundBrush));
+            OnPropertyChanged(nameof(BorderBrush));
+            
             // 通知所有插件主题变更
             // 这里可以添加逻辑来通知所有插件主题已变更
             // 例如，遍历所有插件并调用其API的主题变更事件
@@ -377,9 +439,34 @@ public partial class MainWindow : Window
     {
         if (CheckSettingsChanges())
         {
-            SettingsWindow settingsView = new();
-            PluginWorkspace.Content = settingsView;
-            NoPluginSelectedText.Visibility = Visibility.Collapsed;
+            // 检查设置窗口是否已在标签页中打开
+            var existingSettingsTab = PluginWorkspaceTabs.Items.Cast<PluginTabItem>()
+                .FirstOrDefault(tab => tab.Content is SettingsWindow);
+            
+            if (existingSettingsTab != null)
+            {
+                // 如果已打开，切换到该标签页
+                PluginWorkspaceTabs.SelectedItem = existingSettingsTab;
+            }
+            else
+            {
+                // 创建新的设置窗口
+                SettingsWindow settingsView = new();
+                
+                // 创建设置标签页
+                var settingsTab = new PluginTabItem
+                {
+                    Title = "设置",
+                    Content = settingsView,
+                    PluginId = "settings",
+                    Metadata = null
+                };
+                
+                // 添加到标签页控件
+                PluginWorkspaceTabs.Items.Add(settingsTab);
+                // 选中新标签页
+                PluginWorkspaceTabs.SelectedItem = settingsTab;
+            }
             
             // 清除插件列表的选中状态，以便再次点击同一插件时能触发SelectionChanged事件
             PluginsListBox.SelectedItem = null;
@@ -568,19 +655,48 @@ public partial class MainWindow : Window
                 var pluginView = plugin.GetMainView();
                 if (pluginView != null)
                 {
-                    PluginWorkspace.Content = pluginView;
-                    NoPluginSelectedText.Visibility = Visibility.Collapsed;
+                    // 获取插件元数据
+                    var metadata = PluginManager.Instance.GetPluginMetadataById(plugin.Id);
+                    if (metadata != null)
+                    {
+                        // 检查该插件是否已在标签页中打开
+                    var existingTab = PluginWorkspaceTabs.Items.Cast<PluginTabItem>()
+                        .FirstOrDefault(tab => tab.PluginId == plugin.Id);
+                        
+                        if (existingTab != null)
+                        {
+                            // 如果已打开，切换到该标签页
+                            PluginWorkspaceTabs.SelectedItem = existingTab;
+                        }
+                        else
+                        {
+                            // 创建新标签页
+                    var newTab = new PluginTabItem
+                    {
+                        Title = metadata.Name,
+                        Content = pluginView,
+                        PluginId = plugin.Id,
+                        Metadata = metadata
+                    };
+                            
+                            // 添加到标签页控件
+                            PluginWorkspaceTabs.Items.Add(newTab);
+                            // 选中新标签页
+                            PluginWorkspaceTabs.SelectedItem = newTab;
+                        }
+                        
+                        NoPluginSelectedText.Visibility = Visibility.Collapsed;
+                    }
                 }
                 else
                 {
-                    ClearPluginWorkspace();
+                    _logService.Error($"插件 {plugin.Id} 未提供主视图");
                 }
             }
         }
         catch (Exception ex)
         {
             _logService.Error($"显示插件UI失败: {ex.Message}");
-            ClearPluginWorkspace();
         }
     }
     
@@ -589,16 +705,19 @@ public partial class MainWindow : Window
     /// </summary>
     private void ClearPluginWorkspace()
     {
-        // 检查当前内容是否是设置页面，如果是则不清除
-        if (PluginWorkspace.Content is SettingsWindow)
+        // 检查当前选中的标签页是否是设置页面
+        if (PluginWorkspaceTabs.SelectedItem is PluginTabItem selectedTab && selectedTab.Content is SettingsWindow)
         {
             return;
         }
         
         if (CheckSettingsChanges())
         {
-            PluginWorkspace.Content = null;
-            NoPluginSelectedText.Visibility = Visibility.Visible;
+            // 如果没有标签页，显示提示文本
+            if (PluginWorkspaceTabs.Items.Count == 0)
+            {
+                NoPluginSelectedText.Visibility = Visibility.Visible;
+            }
         }
     }
     
@@ -1028,8 +1147,10 @@ public partial class MainWindow : Window
         /// <returns>是否允许继续操作</returns>
         private bool CheckSettingsChanges()
         {
-            // 检查当前内容是否是设置窗口
-            if (PluginWorkspace.Content is SettingsWindow settingsView && settingsView.HasChanges)
+            // 检查当前选中的标签页内容是否是设置页面，如果是则检查是否有变更
+            if (PluginWorkspaceTabs.SelectedItem is PluginTabItem selectedTab && 
+                selectedTab.Content is SettingsWindow settingsView && 
+                settingsView.HasChanges)
             {
                 // 显示保存提示
                 MessageBoxResult result = MessageBox.Show(
@@ -1116,6 +1237,43 @@ public partial class MainWindow : Window
         #endregion
         
         /// <summary>
+        /// 标签页选择变更事件处理
+        /// </summary>
+        private void PluginWorkspaceTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // 根据标签页是否存在，控制提示文本的显示
+            if (PluginWorkspaceTabs.Items.Count == 0)
+            {
+                NoPluginSelectedText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                NoPluginSelectedText.Visibility = Visibility.Collapsed;
+            }
+        }
+        
+        /// <summary>
+        /// 关闭插件标签页事件处理
+        /// </summary>
+        private void ClosePluginTab_Click(object sender, RoutedEventArgs e)
+        {
+            // 获取点击的按钮
+            var button = sender as Button;
+            if (button == null) return;
+            
+            // 获取对应的TabItem
+            var tabItem = button.DataContext as PluginTabItem;
+            if (tabItem == null) return;
+            
+            // 检查是否可以关闭（主要是检查设置页面的变更）
+            if (CheckSettingsChanges())
+            {
+                // 移除标签页
+                PluginWorkspaceTabs.Items.Remove(tabItem);
+            }
+        }
+        
+        /// <summary>
         /// 获取主题服务实例，供设置窗口使用
         /// </summary>
         /// <returns>主题服务实例</returns>
@@ -1123,4 +1281,10 @@ public partial class MainWindow : Window
         {
             return _themeService;
         }
+        
+        // 主题属性，供XAML绑定使用
+        public Brush MainBackgroundBrush => _themeService.MainBackgroundBrush;
+        public Brush MainForegroundBrush => _themeService.MainForegroundBrush;
+        public Brush PluginWorkspaceBackgroundBrush => _themeService.PluginWorkspaceBackgroundBrush;
+        public new Brush BorderBrush => _themeService.BorderBrush;
     }
