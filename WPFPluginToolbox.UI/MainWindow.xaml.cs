@@ -707,25 +707,78 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     
     /// <summary>
-    /// 清空插件工作区
-    /// </summary>
-    private void ClearPluginWorkspace()
-    {
-        // 检查当前选中的标签页是否是设置页面
-        if (PluginWorkspaceTabs.SelectedItem is PluginTabItem selectedTab && selectedTab.Content is SettingsWindow)
+        /// 清空插件工作区
+        /// </summary>
+        private void ClearPluginWorkspace()
         {
-            return;
-        }
-        
-        if (CheckSettingsChanges())
-        {
-            // 如果没有标签页，显示提示文本
-            if (PluginWorkspaceTabs.Items.Count == 0)
+            // 检查当前选中的标签页是否是设置页面
+            if (PluginWorkspaceTabs.SelectedItem is PluginTabItem selectedTab && selectedTab.Content is SettingsWindow)
             {
-                NoPluginSelectedText.Visibility = Visibility.Visible;
+                return;
+            }
+            
+            if (CheckSettingsChanges())
+            {
+                // 如果没有标签页，显示提示文本
+                if (PluginWorkspaceTabs.Items.Count == 0)
+                {
+                    NoPluginSelectedText.Visibility = Visibility.Visible;
+                }
             }
         }
-    }
+        
+        /// <summary>
+        /// 插件列表鼠标右键点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void PluginsListBox_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var listBox = sender as ListBox;
+            if (listBox == null) return;
+            
+            var hitTestResult = VisualTreeHelper.HitTest(listBox, e.GetPosition(listBox));
+            
+            // 检查点击的是否是空白区域
+            if (hitTestResult == null || !(hitTestResult.VisualHit is ListBoxItem))
+            {
+                // 点击的是空白区域，取消选择并显示空白区域的上下文菜单
+                listBox.SelectedItem = null;
+                var contextMenu = listBox.FindResource("EmptySpaceContextMenu") as ContextMenu;
+                if (contextMenu != null)
+                {
+                    contextMenu.PlacementTarget = listBox;
+                    contextMenu.IsOpen = true;
+                    e.Handled = true;
+                }
+            }
+            else
+            {
+                // 点击的是插件项，显示插件项的上下文菜单
+                // 这里不需要处理，因为ListBoxItem会自动处理ContextMenu
+            }
+        }
+        
+        /// <summary>
+        /// 重载所有插件菜单项点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void ReloadAllPluginsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _logService.Info("正在重载所有插件");
+                PluginManager.Instance.ReloadPlugins();
+                UpdatePluginsList();
+                ClearPluginWorkspace();
+                _logService.Info("已重新加载所有插件");
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"重新加载插件失败: {ex.Message}");
+            }
+        }
     
     /// <summary>
         /// 卸载插件菜单项点击事件

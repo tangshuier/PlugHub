@@ -298,9 +298,10 @@
                     <!-- 插件列表 -->
                     <DockPanel Margin="2">
                         <Label Content="已加载插件" DockPanel.Dock="Top" FontWeight="Bold" Padding="5"/>
-                        <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged">
-                            <ListBox.ContextMenu>
-                                <ContextMenu>
+                        <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged" MouseRightButtonDown="PluginsListBox_MouseRightButtonDown">
+                            <ListBox.Resources>
+                                <!-- 插件项的ContextMenu -->
+                                <ContextMenu x:Key="PluginItemContextMenu">
                                     <MenuItem Header="配置" Click="ConfigurePluginMenuItem_Click"/>
                                     <Separator/>
                                     <MenuItem Header="卸载插件" Click="UnloadPluginMenuItem_Click"/>
@@ -308,10 +309,20 @@
                                     <MenuItem Header="导出插件" Click="ExportPluginMenuItem_Click"/>
                                     <MenuItem Header="删除插件" Click="DeletePluginMenuItem_Click"/>
                                 </ContextMenu>
-                            </ListBox.ContextMenu>
+                                
+                                <!-- 空白位置的ContextMenu -->
+                                <ContextMenu x:Key="EmptySpaceContextMenu">
+                                    <MenuItem Header="重载所有插件" Click="ReloadAllPluginsMenuItem_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="导入插件" Click="ImportPlugins_Click"/>
+                                </ContextMenu>
+                            </ListBox.Resources>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel>
+                                        <StackPanel.ContextMenu>
+                                            <StaticResource ResourceKey="PluginItemContextMenu"/>
+                                        </StackPanel.ContextMenu>
                                         <StackPanel.Style>
                                             <Style TargetType="StackPanel">
                                                 <!-- 默认样式 -->
