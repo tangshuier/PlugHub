@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WPFPluginToolbox.Core;
@@ -45,6 +46,9 @@ namespace ChineseFontMatrixPlugin
             // 订阅主题变更事件
             _pluginApi.ThemeChanged += OnThemeChanged;
             
+            // 添加IsVisibleChanged事件监听，确保页面显示时同步主题色
+            this.IsVisibleChanged += OnIsVisibleChanged;
+            
             // 初始化配置
             _config = new PluginConfig();
             
@@ -53,37 +57,37 @@ namespace ChineseFontMatrixPlugin
             {
                 _config = LoadConfig();
                 InitializeUI();
-                // 强制更新主题颜色
-                UpdateThemeColors();
-                // 再次强制更新，确保颜色设置生效
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    UpdateThemeColors();
-                }), System.Windows.Threading.DispatcherPriority.Render);
+                // 使用API提供的主题应用方法，直接应用到整个控件
+                _pluginApi.ApplyThemeToElement(this);
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
         
         // 主题变更事件处理
         private void OnThemeChanged(object? sender, ToolboxTheme theme)
         {
-            // 延迟更新，确保工具箱的主题同步完成后再更新
-            Dispatcher.BeginInvoke(new Action(() =>
+            // 立即更新，不需要延迟
+            try
             {
-                try
-                {
-                    // 直接使用API提供的主题和颜色
-                    UpdateThemeColors(theme);
-                    // 再次强制更新，确保颜色设置生效
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        UpdateThemeColors(theme);
-                    }), System.Windows.Threading.DispatcherPriority.Render);
-                }
-                catch (Exception ex)
-                {
-                    _pluginApi.Error("处理主题变更事件失败", ex);
-                }
-            }), System.Windows.Threading.DispatcherPriority.Input);
+                // 直接使用API提供的主题应用方法，应用到整个控件
+                _pluginApi.ApplyThemeToElement(this);
+                // 强制刷新UI，确保颜色立即生效
+                this.InvalidateVisual();
+                this.UpdateLayout();
+            }
+            catch (Exception ex)
+            {
+                _pluginApi.Error("处理主题变更事件失败", ex);
+            }
+        }
+        
+        // IsVisibleChanged事件处理，确保页面显示时同步主题色
+        private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.IsVisible)
+            {
+                // 页面被显示时，立即同步主题色
+                _pluginApi.ApplyThemeToElement(this);
+            }
         }
         
         // ComboBox加载完成事件处理
@@ -93,30 +97,8 @@ namespace ChineseFontMatrixPlugin
             {
                 if (sender is System.Windows.Controls.ComboBox comboBox)
                 {
-                    // 强制更新主题颜色
-                    UpdateThemeColors();
-                    // 专门更新这个ComboBox的颜色
-                    var currentTheme = _pluginApi.CurrentTheme;
-                    var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
-                    var foregroundBrush = _pluginApi.CurrentForegroundBrush;
-                    bool isDarkTheme = IsDarkBackground(backgroundBrush);
-                    
-                    System.Windows.Media.Brush controlBackgroundBrush;
-                    System.Windows.Media.Brush borderBrush;
-                    
-                    if (isDarkTheme)
-                    {
-                        controlBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(44, 62, 80));
-                        borderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 73, 94));
-                    }
-                    else
-                    {
-                        controlBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
-                        borderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(189, 195, 199));
-                    }
-                    
-                    // 直接更新这个ComboBox
-                    UpdateComboBoxColors(comboBox, controlBackgroundBrush, foregroundBrush, borderBrush);
+                    // 使用API提供的主题应用方法，应用到ComboBox控件
+                    _pluginApi.ApplyThemeToElement(comboBox);
                 }
             }
             catch (Exception ex)
@@ -152,54 +134,8 @@ namespace ChineseFontMatrixPlugin
             }
         }
         
-        // 更新主题颜色
-        private void UpdateThemeColors()
-        {
-            try
-            {
-                // 获取主题相关的颜色
-                var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
-                var foregroundBrush = _pluginApi.CurrentForegroundBrush;
-                var currentTheme = _pluginApi.CurrentTheme;
-                
-                // 直接更新控件颜色，跳过资源字典更新，确保立即生效
-                bool isDarkTheme = IsDarkBackground(backgroundBrush);
-                
-                // 使用API提供的实际主题，而不是推断
-                UpdateControlColors(currentTheme, isDarkTheme, backgroundBrush, foregroundBrush);
-                
-                // 强制更新所有控件的样式
-                UpdateAllControls();
-            }
-            catch (Exception ex)
-            {
-                _pluginApi.Error("更新主题颜色失败", ex);
-            }
-        }
-        
-        // 更新主题颜色（带主题参数）
-        private void UpdateThemeColors(ToolboxTheme theme)
-        {
-            try
-            {
-                // 获取主题相关的颜色
-                var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
-                var foregroundBrush = _pluginApi.CurrentForegroundBrush;
-                
-                // 直接更新控件颜色，跳过资源字典更新，确保立即生效
-                bool isDarkTheme = IsDarkBackground(backgroundBrush);
-                
-                // 使用API提供的实际主题，而不是推断
-                UpdateControlColors(theme, isDarkTheme, backgroundBrush, foregroundBrush);
-                
-                // 强制更新所有控件的样式
-                UpdateAllControls();
-            }
-            catch (Exception ex)
-            {
-                _pluginApi.Error("更新主题颜色失败", ex);
-            }
-        }
+        // 简化主题应用，直接使用API提供的ApplyThemeToElement方法
+        // 移除复杂的自定义主题应用方法
         
         // 强制更新所有控件的样式
         private void UpdateAllControls()
@@ -500,7 +436,10 @@ namespace ChineseFontMatrixPlugin
             // 更新Border元素
             if (element is Border border)
             {
-                border.Background = backgroundBrush;
+                if (backgroundBrush != null)
+                {
+                    border.Background = backgroundBrush;
+                }
                 border.BorderBrush = borderBrush;
             }
             
@@ -513,24 +452,45 @@ namespace ChineseFontMatrixPlugin
             // 更新ContentPresenter元素
             if (element is ContentPresenter contentPresenter)
             {
-                // ContentPresenter本身没有Foreground属性，但可以尝试更新其内容
-                if (contentPresenter.Content is TextBlock contentTextBlock)
+                // 尝试更新ContentPresenter的TextElement.Foreground附加属性，这会影响其内容
+                TextElement.SetForeground(contentPresenter, foregroundBrush);
+                
+                // 递归处理ContentPresenter的子元素，包括WPF自动创建的TextBlock
+                int childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(contentPresenter);
+                for (int i = 0; i < childrenCount; i++)
                 {
-                    contentTextBlock.Foreground = foregroundBrush;
+                    DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(contentPresenter, i);
+                    UpdateVisualTree(child, backgroundBrush, foregroundBrush, borderBrush);
                 }
+            }
+            
+            // 更新所有WPF Control元素的Foreground属性
+            if (element is System.Windows.Controls.Control control)
+            {
+                control.Foreground = foregroundBrush;
             }
             
             // 更新ComboBoxItem元素
             if (element is System.Windows.Controls.ComboBoxItem comboBoxItem)
             {
-                comboBoxItem.Background = backgroundBrush;
+                if (backgroundBrush != null)
+                {
+                    comboBoxItem.Background = backgroundBrush;
+                }
                 comboBoxItem.Foreground = foregroundBrush;
                 comboBoxItem.BorderBrush = borderBrush;
             }
             
+            // 更新RadioButton和CheckBox的内部文本颜色
+            if (element is System.Windows.Controls.RadioButton || element is System.Windows.Controls.CheckBox)
+            {
+                // 直接设置Foreground属性
+                (element as System.Windows.Controls.Control).Foreground = foregroundBrush;
+            }
+            
             // 递归处理子元素
-            int childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
-            for (int i = 0; i < childrenCount; i++)
+            int totalChildrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < totalChildrenCount; i++)
             {
                 DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
                 UpdateVisualTree(child, backgroundBrush, foregroundBrush, borderBrush);
@@ -542,8 +502,10 @@ namespace ChineseFontMatrixPlugin
         {
             if (radioButton != null)
             {
+                // 确保RadioButton的文字颜色使用主题的前景色
                 radioButton.Foreground = foregroundBrush;
-                // 尝试更新内部视觉元素
+                
+                // 遍历视觉树，更新所有相关元素，包括内部的TextBlock
                 UpdateVisualTree(radioButton, null, foregroundBrush, primaryColor);
             }
         }
@@ -1081,7 +1043,7 @@ namespace ChineseFontMatrixPlugin
                 OnGenerateModeChanged(null, null);
                 
                 // 确保在UI初始化完成后更新主题颜色
-                UpdateThemeColors();
+                _pluginApi.ApplyThemeToElement(this);
             }
             catch (Exception ex)
             {

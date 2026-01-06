@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using WPFPluginToolbox.Core;
 using WPFPluginToolbox.Services;
@@ -39,7 +40,7 @@ namespace WPFPluginToolbox.PluginSystem
         /// <summary>
         /// 插件加载器实例
         /// </summary>
-        private readonly PluginLoader? _pluginLoader;
+        private readonly PluginLoader _pluginLoader;
         
         /// <summary>
         /// JSON序列化选项，静态实例以重用
@@ -61,19 +62,34 @@ namespace WPFPluginToolbox.PluginSystem
         }
         
         /// <summary>
-        /// 主题服务实例
-        /// </summary>
-        private static ThemeService? _themeService;
-        
-        /// <summary>
-        /// 跟踪所有PluginAPI实例
-        /// </summary>
-        private static readonly List<PluginAPI> _instances = new List<PluginAPI>();
-        
-        /// <summary>
         /// 插件是否同步工具箱主题
         /// </summary>
         private bool _syncToolboxTheme = true;
+        
+        /// <summary>
+        /// 主题服务实例（来自主窗口，所有插件共享）
+        /// </summary>
+        private ThemeService? _themeService;
+        
+        /// <summary>
+        /// 设置服务实例
+        /// </summary>
+        private readonly SettingsService _settingsService;
+        
+        /// <summary>
+        /// 数据共享服务实例
+        /// </summary>
+        private readonly SimpleDataShareService _dataShareService;
+        
+        /// <summary>
+        /// 事件总线实例
+        /// </summary>
+        private readonly LightweightEventBus _eventBus;
+        
+        /// <summary>
+        /// 性能监控服务实例
+        /// </summary>
+        private readonly PerformanceMonitor _performanceMonitor;
 
         #endregion
 
@@ -82,39 +98,44 @@ namespace WPFPluginToolbox.PluginSystem
         /// <summary>
         /// 构造函数
         /// </summary>
-        public PluginAPI()
+        /// <param name="pluginLoader">插件加载器实例</param>
+        public PluginAPI(PluginLoader pluginLoader)
         {
             // 初始化默认值
             PluginId = string.Empty;
             PluginName = string.Empty;
             PluginPath = string.Empty;
-            _pluginLoader = null;
-            
-            // 添加实例到静态列表
-            lock (_instances)
-            {
-                _instances.Add(this);
-            }
-        }
-
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="pluginLoader">插件加载器实例</param>
-        public PluginAPI(PluginLoader pluginLoader) : this()
-        {
             _pluginLoader = pluginLoader;
+            
+            // 初始化服务实例
+            _settingsService = new SettingsService();
+            _dataShareService = new SimpleDataShareService();
+            _eventBus = new LightweightEventBus();
+            _performanceMonitor = new PerformanceMonitor();
+            
+            // 开始监控当前插件性能
+            _performanceMonitor.StartMonitoring(PluginId, PluginName);
         }
         
         /// <summary>
-        /// 析构函数
+        /// 设置主题服务实例（从外部注入）
         /// </summary>
-        ~PluginAPI()
+        /// <param name="themeService">主题服务实例</param>
+        public void SetThemeService(ThemeService themeService)
         {
-            // 从静态列表中移除实例
-            lock (_instances)
+            // 移除旧的事件订阅
+            if (_themeService != null)
             {
-                _instances.Remove(this);
+                _themeService.ThemeChanged -= OnThemeChanged;
+            }
+            
+            // 设置新的主题服务实例
+            _themeService = themeService;
+            
+            // 订阅新的事件
+            if (_themeService != null)
+            {
+                _themeService.ThemeChanged += OnThemeChanged;
             }
         }
 
@@ -516,10 +537,16 @@ namespace WPFPluginToolbox.PluginSystem
                 
                 await File.WriteAllTextAsync(ConfigFilePath, json);
                 Info($"成功保存配置: {ConfigFilePath}");
+                
+                // 发布配置变更事件
+                _eventBus.Publish(new ConfigChangedEvent(PluginId, "ConfigSaved"));
             }
             catch (Exception ex)
             {
                 Error($"保存配置失败: {ConfigFilePath}", ex);
+                
+                // 发布配置变更失败事件
+                _eventBus.Publish(new PluginErrorEvent(PluginId, $"保存配置失败: {ex.Message}", ex));
                 throw;
             }
         }
@@ -531,6 +558,176 @@ namespace WPFPluginToolbox.PluginSystem
         public bool HasConfig()
         {
             return FileExists(ConfigFilePath);
+        }
+        
+        #endregion
+        
+        #region 数据共享
+        
+        /// <summary>
+        /// 存储共享数据
+        /// </summary>
+        /// <param name="key">数据键名</param>
+        /// <param name="data">要存储的数据</param>
+        public void ShareData(string key, object data)
+        {
+            try
+            {
+                _dataShareService.SetData(key, data);
+                Info($"共享数据: {key}");
+            }
+            catch (Exception ex)
+            {
+                Error($"共享数据失败: {key}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// 获取共享数据
+        /// </summary>
+        /// <typeparam name="T">数据类型</typeparam>
+        /// <param name="key">数据键名</param>
+        /// <returns>转换后的数据，如果转换失败则返回默认值</returns>
+        public T? GetSharedData<T>(string key)
+        {
+            try
+            {
+                return _dataShareService.GetData<T>(key);
+            }
+            catch (Exception ex)
+            {
+                Error($"获取共享数据失败: {key}", ex);
+                return default;
+            }
+        }
+        
+        /// <summary>
+        /// 检查是否存在指定键的数据
+        /// </summary>
+        /// <param name="key">数据键名</param>
+        /// <returns>是否存在数据</returns>
+        public bool HasSharedData(string key)
+        {
+            try
+            {
+                return _dataShareService.ContainsData(key);
+            }
+            catch (Exception ex)
+            {
+                Error($"检查共享数据失败: {key}", ex);
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// 删除指定键的共享数据
+        /// </summary>
+        /// <param name="key">数据键名</param>
+        public void RemoveSharedData(string key)
+        {
+            try
+            {
+                _dataShareService.RemoveData(key);
+                Info($"删除共享数据: {key}");
+            }
+            catch (Exception ex)
+            {
+                Error($"删除共享数据失败: {key}", ex);
+            }
+        }
+        
+        #endregion
+        
+        #region 事件总线
+        
+        /// <summary>
+        /// 发布事件
+        /// </summary>
+        /// <typeparam name="TEvent">事件类型</typeparam>
+        /// <param name="event">要发布的事件</param>
+        public void PublishEvent<TEvent>(TEvent @event) where TEvent : class
+        {
+            try
+            {
+                _eventBus.Publish(@event);
+                Info($"发布事件: {typeof(TEvent).Name}");
+            }
+            catch (Exception ex)
+            {
+                Error($"发布事件失败: {typeof(TEvent).Name}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// 订阅事件
+        /// </summary>
+        /// <typeparam name="TEvent">事件类型</typeparam>
+        /// <param name="handler">事件处理程序</param>
+        public void SubscribeEvent<TEvent>(Action<TEvent> handler) where TEvent : class
+        {
+            try
+            {
+                _eventBus.Subscribe(handler);
+                Info($"订阅事件: {typeof(TEvent).Name}");
+            }
+            catch (Exception ex)
+            {
+                Error($"订阅事件失败: {typeof(TEvent).Name}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// 取消订阅事件
+        /// </summary>
+        /// <typeparam name="TEvent">事件类型</typeparam>
+        /// <param name="handler">要取消的事件处理程序</param>
+        public void UnsubscribeEvent<TEvent>(Action<TEvent> handler) where TEvent : class
+        {
+            try
+            {
+                _eventBus.Unsubscribe(handler);
+                Info($"取消订阅事件: {typeof(TEvent).Name}");
+            }
+            catch (Exception ex)
+            {
+                Error($"取消订阅事件失败: {typeof(TEvent).Name}", ex);
+            }
+        }
+        
+        #endregion
+        
+        #region 性能监控
+        
+        /// <summary>
+        /// 开始计时操作
+        /// </summary>
+        /// <param name="operationName">操作名称</param>
+        public void StartOperationTimer(string operationName)
+        {
+            try
+            {
+                _performanceMonitor.StartOperationTimer($"{PluginId}:{operationName}");
+            }
+            catch (Exception ex)
+            {
+                Error($"开始性能计时失败: {operationName}", ex);
+            }
+        }
+        
+        /// <summary>
+        /// 停止计时并记录操作
+        /// </summary>
+        /// <param name="operationName">操作名称</param>
+        public void StopOperationTimer(string operationName)
+        {
+            try
+            {
+                _performanceMonitor.StopOperationTimer($"{PluginId}:{operationName}");
+            }
+            catch (Exception ex)
+            {
+                Error($"停止性能计时失败: {operationName}", ex);
+            }
         }
         
         #endregion
@@ -550,21 +747,34 @@ namespace WPFPluginToolbox.PluginSystem
         #region 主题相关
         
         /// <summary>
+        /// 主题变更事件处理方法
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void OnThemeChanged(object? sender, ToolboxTheme e)
+        {
+            ThemeChanged?.Invoke(this, e);
+        }
+        
+        /// <summary>
         /// 主题变更事件
         /// </summary>
         public event EventHandler<ToolboxTheme>? ThemeChanged;
         
         /// <summary>
-        /// 获取当前主题
+        /// 获取当前主题（包括预览主题）
         /// </summary>
         public ToolboxTheme CurrentTheme
         {
-            get
-            {
-                // 初始化主题服务（如果未初始化）
-                InitializeThemeService();
-                return _themeService?.CurrentTheme ?? ToolboxTheme.Black;
-            }
+            get => _themeService?.CurrentTheme ?? _settingsService.GetSettings().Theme;
+        }
+        
+        /// <summary>
+        /// 获取已保存的主题（从设置文件中获取）
+        /// </summary>
+        public ToolboxTheme SavedTheme
+        {
+            get => _settingsService.GetSettings().Theme;
         }
         
         /// <summary>
@@ -572,12 +782,7 @@ namespace WPFPluginToolbox.PluginSystem
         /// </summary>
         public Brush CurrentBackgroundBrush
         {
-            get
-            {
-                // 初始化主题服务（如果未初始化）
-                InitializeThemeService();
-                return _themeService?.MainBackgroundBrush ?? Brushes.Black;
-            }
+            get => _themeService?.MainBackgroundBrush ?? new SolidColorBrush(Color.FromRgb(245, 245, 245));
         }
         
         /// <summary>
@@ -585,11 +790,67 @@ namespace WPFPluginToolbox.PluginSystem
         /// </summary>
         public Brush CurrentForegroundBrush
         {
+            get => _themeService?.MainForegroundBrush ?? Brushes.Black;
+        }
+        
+        /// <summary>
+        /// 获取当前主题的插件面板背景色
+        /// </summary>
+        public Brush PluginPanelBackgroundBrush
+        {
+            get => _themeService?.PluginPanelBackgroundBrush ?? new SolidColorBrush(Color.FromRgb(235, 235, 235));
+        }
+        
+        /// <summary>
+        /// 获取当前主题的插件工作区背景色
+        /// </summary>
+        public Brush PluginWorkspaceBackgroundBrush
+        {
+            get => _themeService?.PluginWorkspaceBackgroundBrush ?? new SolidColorBrush(Color.FromRgb(250, 250, 250));
+        }
+        
+        /// <summary>
+        /// 获取当前主题的边框颜色
+        /// </summary>
+        public Brush BorderBrush
+        {
+            get => _themeService?.BorderBrush ?? new SolidColorBrush(Color.FromRgb(200, 200, 200));
+        }
+        
+        /// <summary>
+        /// 获取当前主题的控件背景色
+        /// </summary>
+        public Brush ControlBackgroundColor
+        {
+            get => _themeService?.MainBackgroundBrush ?? new SolidColorBrush(Color.FromRgb(245, 245, 245));
+        }
+        
+        /// <summary>
+        /// 获取当前主题的控件前景色
+        /// </summary>
+        public Brush ControlForegroundColor
+        {
+            get => _themeService?.MainForegroundBrush ?? Brushes.Black;
+        }
+        
+        /// <summary>
+        /// 获取当前主题的强调色
+        /// </summary>
+        public Brush AccentColor
+        {
             get
             {
-                // 初始化主题服务（如果未初始化）
-                InitializeThemeService();
-                return _themeService?.MainForegroundBrush ?? Brushes.White;
+                // 使用主背景色的对比色作为强调色
+                var bg = _themeService.MainBackgroundBrush;
+                if (bg is SolidColorBrush solidBrush)
+                {
+                    var color = solidBrush.Color;
+                    // 计算亮度
+                    double brightness = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
+                    // 如果背景较暗，返回蓝色；否则返回深蓝色
+                    return brightness < 0.5 ? Brushes.SteelBlue : Brushes.DarkSlateBlue;
+                }
+                return Brushes.SteelBlue;
             }
         }
         
@@ -603,37 +864,208 @@ namespace WPFPluginToolbox.PluginSystem
         }
         
         /// <summary>
-        /// 初始化主题服务
+        /// 将当前主题应用到指定的FrameworkElement及其所有子元素
         /// </summary>
-        private static void InitializeThemeService()
+        /// <param name="element">要应用主题的元素</param>
+        public void ApplyThemeToElement(FrameworkElement element)
         {
-            if (_themeService == null)
+            try
             {
-                // 创建主题服务实例
-                var settingsService = new SettingsService();
-                _themeService = new ThemeService(settingsService);
+                if (element == null)
+                    return;
                 
-                // 订阅主题变更事件
-                _themeService.ThemeChanged += OnThemeChanged;
+                // 直接从设置中获取最新的主题颜色，不依赖于静态实例
+                // 对于插件，使用插件工作区背景色
+                var bg = PluginWorkspaceBackgroundBrush;
+                var fg = CurrentForegroundBrush;
+                var border = BorderBrush;
+                var controlBg = CurrentBackgroundBrush;
+                
+                // 首先将主题应用到根元素
+                // 对于所有FrameworkElement，直接调用递归方法，确保所有类型都被处理
+                ApplyThemeRecursively(element, bg, fg, border, controlBg);
+                
+                // 确保根元素本身的属性也被正确设置
+                if (element is Panel panel)
+                {
+                    panel.Background = bg;
+                }
+                else if (element is UserControl userControl)
+                {
+                    userControl.Background = bg;
+                    userControl.Foreground = fg;
+                }
+                else if (element is TabControl tabControl)
+                {
+                    // TabControl作为容器控件使用工作区背景色
+                    tabControl.Background = bg;
+                    tabControl.Foreground = fg;
+                    tabControl.BorderBrush = border;
+                }
+                else if (element is Control control)
+                {
+                    // 非容器控件使用控件背景色
+                    control.Background = controlBg;
+                    control.Foreground = fg;
+                    control.BorderBrush = border;
+                }
+                else if (element is Border borderElement)
+                {
+                    borderElement.Background = bg;
+                    borderElement.BorderBrush = border;
+                }
+                else if (element is TextBlock textBlock)
+                {
+                    textBlock.Foreground = fg;
+                }
+                else if (element is ContentControl contentControl)
+                {
+                    contentControl.Foreground = fg;
+                }
+                
+                // 强制刷新UI，确保颜色立即生效
+                element.InvalidateVisual();
+                element.UpdateLayout();
+            }
+            catch (Exception ex)
+            {
+                Error("应用主题到元素失败", ex);
             }
         }
         
         /// <summary>
-        /// 主题变更事件处理
+        /// 递归将主题应用到元素及其子元素
         /// </summary>
-        /// <param name="sender">事件发送者</param>
-        /// <param name="theme">新主题</param>
-        private static void OnThemeChanged(object? sender, ToolboxTheme theme)
+        /// <param name="element">要应用主题的元素</param>
+        /// <param name="bg">背景色</param>
+        /// <param name="fg">前景色</param>
+        /// <param name="border">边框色</param>
+        /// <param name="controlBg">控件背景色</param>
+        private void ApplyThemeRecursively(DependencyObject element, Brush bg, Brush fg, Brush border, Brush controlBg)
         {
-            // 遍历所有PluginAPI实例，触发它们的ThemeChanged事件
-            lock (_instances)
+            int count = VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < count; i++)
             {
-                foreach (var instance in _instances.ToList())
+                var child = VisualTreeHelper.GetChild(element, i);
+                
+                // 处理TabControl类型（特殊容器控件）
+                if (child is TabControl tabControl)
                 {
-                    instance.ThemeChanged?.Invoke(sender, theme);
+                    tabControl.Background = bg;
+                    tabControl.Foreground = fg;
+                    tabControl.BorderBrush = border;
                 }
+                // 处理Control类型
+                else if (child is Control control)
+                {
+                    // 非容器控件使用控件背景色
+                    control.Background = controlBg;
+                    control.Foreground = fg;
+                    control.BorderBrush = border;
+                }
+                // 处理Border类型
+                else if (child is Border borderElement)
+                {
+                    borderElement.Background = bg;
+                    borderElement.BorderBrush = border;
+                }
+                // 处理TextBlock类型
+                else if (child is TextBlock textBlock)
+                {
+                    textBlock.Foreground = fg;
+                }
+                // 处理ContentControl类型
+                else if (child is ContentControl contentControl)
+                {
+                    contentControl.Foreground = fg;
+                }
+                // 处理ContentPresenter类型
+                else if (child is ContentPresenter contentPresenter)
+                {
+                    // 设置ContentPresenter的前景色
+                    TextElement.SetForeground(contentPresenter, fg);
+                }
+                // 处理WebBrowser类型
+                else if (child is System.Windows.Controls.WebBrowser)
+                {
+                    // WebBrowser控件不需要设置背景色和前景色
+                }
+                // 处理Image类型
+                else if (child is System.Windows.Controls.Image)
+                {
+                    // Image控件不需要设置背景色和前景色
+                }
+                // 处理MediaElement类型
+                else if (child is System.Windows.Controls.MediaElement)
+                {
+                    // MediaElement控件不需要设置背景色和前景色
+                }
+                // 处理Shape类型
+                else if (child is System.Windows.Shapes.Shape shape)
+                {
+                    shape.Fill = bg;
+                    shape.Stroke = border;
+                    shape.StrokeThickness = 1;
+                }
+                // 处理Panel类型（包括Grid、StackPanel等容器控件）
+                else if (child is System.Windows.Controls.Panel panel)
+                {
+                    // 面板控件使用工作区背景色
+                    panel.Background = bg;
+                }
+                
+                // 递归处理子元素
+                ApplyThemeRecursively(child, bg, fg, border, controlBg);
             }
         }
+        
+        /// <summary>
+        /// 为指定的Brush类型获取当前主题的颜色
+        /// </summary>
+        /// <param name="brushType">Brush类型名称</param>
+        /// <returns>对应的Brush对象</returns>
+        public Brush GetThemeBrush(string brushType)
+        {
+            try
+            {
+                // 直接从当前主题属性返回对应Brush，不依赖于静态实例
+                switch (brushType.ToLower())
+                {
+                    case "background":
+                    case "mainbackground":
+                        return CurrentBackgroundBrush;
+                    case "foreground":
+                    case "mainforeground":
+                        return CurrentForegroundBrush;
+                    case "pluginpanelbackground":
+                        return PluginPanelBackgroundBrush;
+                    case "pluginworkspacebackground":
+                        return PluginWorkspaceBackgroundBrush;
+                    case "border":
+                    case "borderbrush":
+                        return BorderBrush;
+                    case "controlbackground":
+                    case "controlbackgroundcolor":
+                        return ControlBackgroundColor;
+                    case "controlforeground":
+                    case "controlforegroundcolor":
+                        return ControlForegroundColor;
+                    case "accent":
+                    case "accentcolor":
+                        return AccentColor;
+                    default:
+                        Warn($"未知的Brush类型: {brushType}");
+                        return CurrentBackgroundBrush;
+                }
+            }
+            catch (Exception ex)
+            {
+                Error($"获取主题Brush失败: {brushType}", ex);
+                return CurrentBackgroundBrush;
+            }
+        }
+        
+
         
         #endregion
 

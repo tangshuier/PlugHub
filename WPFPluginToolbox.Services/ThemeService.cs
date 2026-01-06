@@ -73,19 +73,32 @@ namespace WPFPluginToolbox.Services
         }
         
         /// <summary>
-        /// 设置主题
+        /// 设置主题（保存到设置文件）
         /// </summary>
         /// <param name="theme">主题枚举</param>
         public void SetTheme(ToolboxTheme theme)
+        {
+            SetTheme(theme, true);
+        }
+        
+        /// <summary>
+        /// 设置主题
+        /// </summary>
+        /// <param name="theme">主题枚举</param>
+        /// <param name="saveToSettings">是否保存到设置文件</param>
+        public void SetTheme(ToolboxTheme theme, bool saveToSettings = true)
         {
             if (_currentTheme != theme)
             {
                 _currentTheme = theme;
                 
                 // 保存主题到设置
-                var settings = _settingsService.GetSettings();
-                settings.Theme = theme;
-                _settingsService.SaveSettings(settings);
+                if (saveToSettings)
+                {
+                    var settings = _settingsService.GetSettings();
+                    settings.Theme = theme;
+                    _settingsService.SaveSettings(settings);
+                }
                 
                 // 触发主题变更事件
                 ThemeChanged?.Invoke(this, theme);

@@ -237,10 +237,10 @@ namespace WPFPluginToolbox.UI
         /// </summary>
         private void ApplyTheme(ToolboxTheme theme)
         {
-            // 通知主窗口应用主题
+            // 通知主窗口应用主题，设置为预览模式，不保存主题到设置文件
             if (Application.Current.MainWindow is MainWindow mainWindow)
             {
-                mainWindow.ApplyTheme(theme);
+                mainWindow.ApplyTheme(theme, true);
             }
             
             // 同时应用主题到设置界面

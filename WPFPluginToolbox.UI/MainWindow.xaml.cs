@@ -228,10 +228,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         /// 应用主题
         /// </summary>
         /// <param name="theme">主题枚举</param>
-        public void ApplyTheme(ToolboxTheme theme)
+        /// <param name="isPreview">是否为预览模式，预览模式下不保存主题到设置文件</param>
+        public void ApplyTheme(ToolboxTheme theme, bool isPreview = false)
         {
-            // 使用主题服务设置主题
-            _themeService.SetTheme(theme);
+            // 使用主题服务设置主题，预览模式下不保存到设置文件
+            _themeService.SetTheme(theme, !isPreview);
             
             // 应用主题到主窗口
             this.Background = _themeService.MainBackgroundBrush;
