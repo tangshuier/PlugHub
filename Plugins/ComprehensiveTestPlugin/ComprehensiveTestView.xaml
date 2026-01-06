@@ -1,0 +1,29 @@
+<UserControl x:Class="ComprehensiveTestPlugin.ComprehensiveTestView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:ComprehensiveTestPlugin"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <StackPanel Margin="20">
+            <TextBlock FontSize="24" FontWeight="Bold" Margin="0,0,0,20">
+                全面测试插件
+            </TextBlock>
+            <TextBlock Margin="0,0,0,10">这是一个用于全面测试WPF插件工具箱功能的插件</TextBlock>
+            <TextBlock Margin="0,0,0,20">选择要运行的测试项目，然后点击下方按钮执行测试，测试结果将显示在调试窗口中</TextBlock>
+            <Button x:Name="TestButton" Content="运行选中的测试" Width="200" Height="40" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+            <Button x:Name="SelectAllButton" Content="全选" Width="100" Height="30" Margin="0,0,10,10"/>
+            <Button x:Name="ClearAllButton" Content="全不选" Width="100" Height="30" Margin="0,0,10,10"/>
+            <TextBlock Margin="0,20,0,0" FontSize="14" FontWeight="Bold">测试项目：</TextBlock>
+            <ItemsControl Margin="10,10,0,0" ItemsSource="{Binding TestItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:TestItem}">
+                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="5,2,0,2"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Grid>
+</UserControl>

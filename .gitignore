@@ -46,7 +46,6 @@ logs/
 *.temp
 
 # Plugin related files
-Plugins/
 TestDependency/
 TestDependentPlugin/
 TestPlugin/
