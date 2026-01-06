@@ -376,13 +376,13 @@
                 
                 <!-- 工具栏 -->
                 <ToolBar Grid.Row="1">
-                    <Button Content="«" Click="TogglePluginPanel_Click" Background="Transparent" BorderBrush="Transparent" Padding="0" ToolTip="隐藏插件栏" Width="25" Height="25" x:Name="ClosePluginPanelButton"/>
+                    <Button Content="«" Click="TogglePluginPanel_Click" Background="Transparent" BorderBrush="Transparent" Padding="0" ToolTip="隐藏插件栏" Width="25" Height="25" x:Name="ClosePluginPanelButton" Foreground="{Binding Path=MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
                     <Separator/>
-                    <Button Content="导入插件" Click="ImportPlugins_Click"/>
+                    <Button Content="导入插件" Click="ImportPlugins_Click" Foreground="{Binding Path=MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
                     <Separator/>
-                    <Button Content="打开调试窗口" Click="OpenDebugWindow_Click"/>
+                    <Button Content="打开调试窗口" Click="OpenDebugWindow_Click" Foreground="{Binding Path=MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
                     <Separator/>
-                    <Button Content="设置" Click="OpenSettings_Click"/>
+                    <Button Content="设置" Click="OpenSettings_Click" Foreground="{Binding Path=MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
                 </ToolBar>
                 
                 <!-- 插件工作区 -->
