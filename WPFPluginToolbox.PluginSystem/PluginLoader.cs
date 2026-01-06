@@ -814,6 +814,8 @@ namespace WPFPluginToolbox.PluginSystem
                 if (!File.Exists(pluginFilePath))
                 {
                     LogWarning($"=== DeletePlugin: Plugin file not found, may have already been deleted: {pluginFilePath}");
+                    // 重新扫描插件目录，确保插件列表是最新的
+                    RescanPluginsDirectory();
                     return true; // 文件不存在，视为删除成功
                 }
                 
@@ -866,6 +868,8 @@ namespace WPFPluginToolbox.PluginSystem
                 if (deletionSuccess)
                 {
                     LogInfo($"=== DeletePlugin: Successfully deleted plugin: {pluginName}");
+                    // 重新扫描插件目录，确保插件列表是最新的
+                    RescanPluginsDirectory();
                     return true;
                 }
                 else
@@ -879,6 +883,102 @@ namespace WPFPluginToolbox.PluginSystem
             {
                 LogError($"=== DeletePlugin: Unexpected error in DeletePlugin method: {ex.Message}");
                 return false;
+            }
+        }
+        
+        /// <summary>
+        /// 重新扫描插件目录，更新已卸载插件列表
+        /// </summary>
+        private void RescanPluginsDirectory()
+        {
+            try
+            {
+                LogInfo($"=== RescanPluginsDirectory: Starting to rescan plugins directory");
+                
+                // 检查并初始化插件加载上下文
+                if (_pluginLoadContext == null)
+                {
+                    LogInfo($"=== RescanPluginsDirectory: PluginLoadContext is null, initializing...");
+                    InitializePluginLoadContext();
+                }
+                
+                // 清空已卸载插件列表
+                _unloadedPlugins.Clear();
+                
+                // 扫描插件目录
+                var dllFiles = Directory.GetFiles(PluginsDirectory, "*.dll");
+                
+                foreach (var dllFile in dllFiles)
+                {
+                    try
+                    {
+                        // 检查这个文件是否已经在已加载插件列表中
+                        bool isLoaded = false;
+                        foreach (var filePath in _pluginFilePaths.Values)
+                        {
+                            if (filePath.Equals(dllFile, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isLoaded = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!isLoaded)
+                        {
+                            // 尝试从文件中读取插件信息
+                            using var fileStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read, FileShare.Delete);
+                            if (_pluginLoadContext != null)
+                            {
+                                var assembly = _pluginLoadContext.LoadFromStream(fileStream);
+                                
+                                // 查找IPlugin类型
+                                var pluginTypes = assembly.GetTypes()
+                                    .Where(type => typeof(IPlugin).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+                                
+                                foreach (var pluginType in pluginTypes)
+                                {
+                                    // 创建插件实例来获取元数据
+                                    if (Activator.CreateInstance(pluginType) is IPlugin plugin && !_unloadedPlugins.ContainsKey(plugin.Id))
+                                    {
+                                        // 创建插件元数据
+                                        var metadata = new PluginMetadata
+                                        {
+                                            Id = plugin.Id,
+                                            Name = plugin.Name,
+                                            Description = plugin.Description,
+                                            Version = plugin.Version,
+                                            Type = plugin.Type,
+                                            PluginPath = dllFile,
+                                            IsLoaded = false,
+                                            IsActive = false,
+                                            HasError = false
+                                        };
+                                        
+                                        _unloadedPlugins[plugin.Id] = metadata;
+                                        LogInfo($"=== RescanPluginsDirectory: Added unloaded plugin to list: {plugin.Name}");
+                                        
+                                        // 释放插件实例
+                                        plugin.Dispose();
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                LogError($"=== RescanPluginsDirectory: PluginLoadContext is null after initialization");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogWarning($"=== RescanPluginsDirectory: Error processing plugin file {dllFile}: {ex.Message}");
+                    }
+                }
+                
+                LogInfo($"=== RescanPluginsDirectory: Finished rescanning plugins directory");
+            }
+            catch (Exception ex)
+            {
+                LogError($"=== RescanPluginsDirectory: Unexpected error during rescan: {ex.Message}");
             }
         }
     }

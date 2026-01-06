@@ -1085,7 +1085,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             // 获取所有插件（包括已加载和已卸载的）
             var allPlugins = PluginManager.Instance.GetAllPlugins();
+            
+            // 如果插件列表为空，尝试重新加载所有插件
+            if (allPlugins.Count == 0)
+            {
+                _logService.Info($"=== UpdatePluginsList: Plugin list is empty, trying to reload all plugins");
+                try
+                {
+                    PluginManager.Instance.LoadAllPlugins();
+                    allPlugins = PluginManager.Instance.GetAllPlugins();
+                    _logService.Info($"=== UpdatePluginsList: Reloaded {allPlugins.Count} plugins");
+                }
+                catch (Exception ex)
+                {
+                    _logService.Error($"=== UpdatePluginsList: Error reloading plugins: {ex.Message}");
+                }
+            }
+            
             PluginsListBox.ItemsSource = allPlugins;
+            _logService.Info($"=== UpdatePluginsList: Updated plugin list with {allPlugins.Count} plugins");
         }
         
         /// <summary>
