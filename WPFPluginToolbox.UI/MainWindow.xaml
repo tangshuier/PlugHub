@@ -220,85 +220,28 @@
     
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="5"/>
             <RowDefinition Height="200" x:Name="DebugRow"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- 自定义标题栏 -->
-        <Grid Grid.Row="0" x:Name="TitleBar">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="90"/>
-            </Grid.ColumnDefinitions>
-            
-            <!-- 左边拖拽区域 -->
-            <Border Grid.Column="0" Background="Transparent" 
-                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <!-- 应用程序标题 -->
-                <TextBlock Text="WPF插件工具箱" FontSize="14" FontWeight="Bold" 
-                           Margin="10,0,0,0" VerticalAlignment="Center" 
-                           Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
-            </Border>
-            
-            <!-- 右边按钮区域 -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Stretch" HorizontalAlignment="Right">
-                <!-- 最小化按钮 -->
-                <Button Content="-" FontSize="18" FontWeight="Bold" 
-                        Width="30" Height="30" Background="Transparent" 
-                        Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
-                        BorderThickness="0" Click="MinimizeButton_Click"
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                
-                <!-- 最大化/还原按钮 -->
-                <Button Content="□" FontSize="14" 
-                        Width="30" Height="30" Background="Transparent" 
-                        Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
-                        BorderThickness="0" Click="MaximizeButton_Click" x:Name="MaximizeButton" 
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                
-                <!-- 关闭按钮 -->
-                <Button Content="X" FontSize="16" 
-                        Width="30" Height="30" Background="Transparent" 
-                        Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
-                        BorderThickness="0" Click="CloseButton_Click" 
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-            </StackPanel>
-        </Grid>
-        
-        <!-- 工具栏 -->
-        <ToolBar Grid.Row="1">
-            <Button Content="导入插件" Click="ImportPlugins_Click"/>
-            <Separator/>
-            <Button Content="打开调试窗口" Click="OpenDebugWindow_Click"/>
-            <Separator/>
-            <Button Content="设置" Click="OpenSettings_Click"/>
-        </ToolBar>
-        
         <!-- 主内容区域 -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="0" x:Name="MainContentGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" MinWidth="20"/>
+                <ColumnDefinition Width="250" x:Name="PluginColumn"/>
                 <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
             <!-- 插件栏容器 -->
             <Grid Grid.Column="0" x:Name="PluginPanel">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                </Grid.ColumnDefinitions>
-                
                 <!-- 插件内容区域 -->
-                <Grid Grid.Column="0" x:Name="PluginContent">
+                <Grid x:Name="PluginContent">
                     <!-- 插件列表 -->
-                    <DockPanel Margin="2">
+                    <DockPanel LastChildFill="True" Margin="2">
                         <Label Content="已加载插件" DockPanel.Dock="Top" FontWeight="Bold" Padding="5"/>
-                        <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged" MouseRightButtonDown="PluginsListBox_MouseRightButtonDown">
+                        <ListBox x:Name="PluginsListBox" Margin="2" SelectionChanged="PluginsListBox_SelectionChanged" MouseRightButtonDown="PluginsListBox_MouseRightButtonDown" HorizontalContentAlignment="Stretch">
                             <ListBox.Resources>
                                 <!-- 插件项的ContextMenu -->
                                 <ContextMenu x:Key="PluginItemContextMenu">
@@ -319,7 +262,7 @@
                             </ListBox.Resources>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel>
+                                    <StackPanel HorizontalAlignment="Stretch">
                                         <StackPanel.ContextMenu>
                                             <StaticResource ResourceKey="PluginItemContextMenu"/>
                                         </StackPanel.ContextMenu>
@@ -327,6 +270,7 @@
                                             <Style TargetType="StackPanel">
                                                 <!-- 默认样式 -->
                                                 <Setter Property="Margin" Value="0,0,0,5"/>
+                                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
                                                 
                                                 <!-- 根据插件类型设置不同的左边距（缩进） -->
                                                 <Style.Triggers>
@@ -338,12 +282,12 @@
                                                     
                                                     <!-- 主插件（Plugin）类型，无缩进或小缩进 -->
                                                     <DataTrigger Binding="{Binding Type}" Value="Plugin">
-                                                        <Setter Property="Margin" Value="5,0,0,5"/>
+                                                        <Setter Property="Margin" Value="5,0,5,5"/>
                                                     </DataTrigger>
                                                     
                                                     <!-- 依赖插件（Dependency）类型，更大的缩进 -->
                                                     <DataTrigger Binding="{Binding Type}" Value="Dependency">
-                                                        <Setter Property="Margin" Value="25,0,0,5"/>
+                                                        <Setter Property="Margin" Value="25,0,5,5"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -372,51 +316,114 @@
                     </DockPanel>
                 </Grid>
                 
-                <!-- 切换按钮 -->
-                <Button Grid.Column="1" Content="→" Click="TogglePluginPanel_Click" Background="#E0E0E0" BorderBrush="Transparent" Padding="0" ToolTip="隐藏插件栏" Width="20" x:Name="ToggleButton" VerticalAlignment="Stretch" HorizontalAlignment="Right"/>
+
             </Grid>
             
             <!-- 分隔线（可拖动调整插件栏宽度） -->
             <GridSplitter Grid.Column="1" Width="5" Background="#D0D0D0" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" x:Name="PluginSplitter" VerticalAlignment="Stretch"/>
             
-            <!-- 插件工作区 -->
-            <Grid Grid.Column="2" Margin="2" x:Name="PluginWorkspaceGrid">
-                <!-- 多标签页插件工作区 -->
-                <TabControl x:Name="PluginWorkspaceTabs" SelectionChanged="PluginWorkspaceTabs_SelectionChanged">
-                    <TabControl.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel Width="Auto">
-                                <Button Content="×" Width="20" Height="20" DockPanel.Dock="Right" 
-                                        Click="ClosePluginTab_Click" Margin="5,0,0,0" Padding="0" 
-                                        FontSize="12" FontWeight="Bold" Background="Transparent" 
-                                        BorderBrush="Transparent" Foreground="Gray" 
-                                        ToolTip="关闭标签页"/>
-                                <TextBlock Text="{Binding Title}" Padding="5,0"/>
-                            </DockPanel>
-                        </DataTemplate>
-                    </TabControl.ItemTemplate>
-                    <TabControl.ContentTemplate>
-                        <DataTemplate>
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                <ContentControl Content="{Binding Content}"/>
-                            </ScrollViewer>
-                        </DataTemplate>
-                    </TabControl.ContentTemplate>
-                </TabControl>
-                <TextBlock Text="请选择一个插件" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="Gray" Visibility="Collapsed" x:Name="NoPluginSelectedText"/>
+            <!-- 显示插件栏按钮（仅在插件栏隐藏时可见） -->
+            <Button Grid.Column="0" Content="»" Click="TogglePluginPanel_Click" Background="Transparent" BorderBrush="Transparent" Padding="0" ToolTip="显示插件栏" Width="25" Height="25" x:Name="ShowPluginPanelButton" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="2" Visibility="Collapsed"/>
+            
+            <!-- 右侧内容区域 -->
+            <Grid Grid.Column="2" x:Name="RightContentGrid">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- 自定义标题栏 -->
+                <Grid Grid.Row="0" x:Name="TitleBar">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="120"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- 左边拖拽区域 -->
+                    <Border Grid.Column="0" Background="Transparent" 
+                            MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                        <!-- 应用程序标题 -->
+                        <TextBlock Text="WPF插件工具箱" FontSize="14" FontWeight="Bold" 
+                                   Margin="10,0,0,0" VerticalAlignment="Center" 
+                                   Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
+                    </Border>
+                    
+                    <!-- 右边按钮区域 -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Stretch" HorizontalAlignment="Right">
+                        <!-- 最小化按钮 -->
+                        <Button Content="-" FontSize="18" FontWeight="Bold" 
+                                Width="30" Height="30" Background="Transparent" 
+                                Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
+                                BorderThickness="0" Click="MinimizeButton_Click"
+                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                        
+                        <!-- 最大化/还原按钮 -->
+                        <Button Content="□" FontSize="14" 
+                                Width="30" Height="30" Background="Transparent" 
+                                Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
+                                BorderThickness="0" Click="MaximizeButton_Click" x:Name="MaximizeButton" 
+                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                        
+                        <!-- 关闭按钮 -->
+                        <Button Content="X" FontSize="16" 
+                                Width="30" Height="30" Background="Transparent" 
+                                Foreground="{Binding MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" 
+                                BorderThickness="0" Click="CloseButton_Click" 
+                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+                
+                <!-- 工具栏 -->
+                <ToolBar Grid.Row="1">
+                    <Button Content="«" Click="TogglePluginPanel_Click" Background="Transparent" BorderBrush="Transparent" Padding="0" ToolTip="隐藏插件栏" Width="25" Height="25" x:Name="ClosePluginPanelButton"/>
+                    <Separator/>
+                    <Button Content="导入插件" Click="ImportPlugins_Click"/>
+                    <Separator/>
+                    <Button Content="打开调试窗口" Click="OpenDebugWindow_Click"/>
+                    <Separator/>
+                    <Button Content="设置" Click="OpenSettings_Click"/>
+                </ToolBar>
+                
+                <!-- 插件工作区 -->
+                <Grid Grid.Row="2" Margin="2" x:Name="PluginWorkspaceGrid">
+                    <!-- 多标签页插件工作区 -->
+                    <TabControl x:Name="PluginWorkspaceTabs" SelectionChanged="PluginWorkspaceTabs_SelectionChanged">
+                        <TabControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Width="Auto">
+                                    <Button Content="×" Width="20" Height="20" DockPanel.Dock="Right" 
+                                            Click="ClosePluginTab_Click" Margin="5,0,0,0" Padding="0" 
+                                            FontSize="12" FontWeight="Bold" Background="Transparent" 
+                                            BorderBrush="Transparent" Foreground="Gray" 
+                                            ToolTip="关闭标签页"/>
+                                    <TextBlock Text="{Binding Title}" Padding="5,0"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+                        <TabControl.ContentTemplate>
+                            <DataTemplate>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                    <ContentControl Content="{Binding Content}"/>
+                                </ScrollViewer>
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
+                    </TabControl>
+                    <TextBlock Text="请选择一个插件" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="Gray" Visibility="Collapsed" x:Name="NoPluginSelectedText"/>
+                </Grid>
             </Grid>
         </Grid>
         
         <!-- 水平分隔线（可拖动调整调试信息窗口高度） -->
-        <GridSplitter Grid.Row="3" Height="5" Background="#D0D0D0" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch"/>
+        <GridSplitter Grid.Row="1" Height="5" Background="#D0D0D0" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch"/>
         
         <!-- 调试信息区域 -->
-        <DockPanel Grid.Row="4" Margin="2" x:Name="DebugPanel">
+        <DockPanel Grid.Row="2" Margin="2" x:Name="DebugPanel">
             <TextBox x:Name="DebugInfoTextBox" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" Margin="2"/>
         </DockPanel>
         
         <!-- 状态栏 -->
-        <StatusBar Grid.Row="5" Height="25">
+        <StatusBar Grid.Row="3" Height="25">
             <StatusBarItem>
                 <TextBlock x:Name="StatusText" Text="就绪" Margin="5,0"/>
             </StatusBarItem>

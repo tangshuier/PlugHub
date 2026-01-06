@@ -58,6 +58,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private readonly ThemeService _themeService;
         private DebugWindow? _debugWindow;
         private GridLength _lastDebugHeight = new(200);
+        private bool _isPluginPanelVisible = true;
         
         /// <summary>
         /// 属性变化事件
@@ -387,10 +388,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             // 更新文本颜色
             NoPluginSelectedText.Foreground = _themeService.MainForegroundBrush;
             
-            // 更新切换按钮样式
-            ToggleButton.Background = _themeService.PluginPanelBackgroundBrush;
-            ToggleButton.Foreground = _themeService.MainForegroundBrush;
-            ToggleButton.BorderBrush = _themeService.BorderBrush;
+            // 更新插件栏按钮样式
+            ClosePluginPanelButton.Background = _themeService.ToolBarBackgroundBrush;
+            ClosePluginPanelButton.Foreground = _themeService.MainForegroundBrush;
+            ClosePluginPanelButton.BorderBrush = _themeService.BorderBrush;
+            
+            // 更新显示插件栏按钮样式
+            ShowPluginPanelButton.Background = _themeService.MainBackgroundBrush;
+            ShowPluginPanelButton.Foreground = _themeService.MainForegroundBrush;
+            ShowPluginPanelButton.BorderBrush = _themeService.BorderBrush;
         }
         
         /// <summary>
@@ -1172,29 +1178,50 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         /// </summary>
         private void TogglePluginPanel()
         {
-            // 获取主内容区域的Grid
-            if (PluginPanel.Parent is Grid mainGrid && mainGrid.ColumnDefinitions.Count > 0)
+            try
             {
-                ColumnDefinition pluginColumn = mainGrid.ColumnDefinitions[0];
+                // 直接切换状态标志
+                _isPluginPanelVisible = !_isPluginPanelVisible;
                 
-                if (PluginContent.Visibility == Visibility.Visible)
+                if (_isPluginPanelVisible)
                 {
-                    // 隐藏插件内容：只隐藏插件内容，保持切换按钮可见
-                    PluginContent.Visibility = Visibility.Collapsed;
-                    ToggleButton.Content = "←";
-                    ToggleButton.ToolTip = "显示插件栏";
-                    // 将插件栏宽度调整为只显示按钮
-                    pluginColumn.Width = new GridLength(20);
+                    // 显示插件栏
+                    PluginPanel.Visibility = Visibility.Visible;
+                    PluginSplitter.Visibility = Visibility.Visible;
+                    ShowPluginPanelButton.Visibility = Visibility.Collapsed;
+                    ClosePluginPanelButton.Content = "«";
+                    ClosePluginPanelButton.ToolTip = "隐藏插件栏";
+                    // 将插件栏宽度恢复到默认值
+                    PluginColumn.Width = new GridLength(250);
                 }
                 else
                 {
-                    // 显示插件内容：恢复插件内容显示
-                    PluginContent.Visibility = Visibility.Visible;
-                    ToggleButton.Content = "→";
-                    ToggleButton.ToolTip = "隐藏插件栏";
-                    // 将插件栏宽度恢复到默认值
-                    pluginColumn.Width = new GridLength(250);
+                    // 隐藏插件栏
+                    PluginPanel.Visibility = Visibility.Collapsed;
+                    PluginSplitter.Visibility = Visibility.Collapsed;
+                    ShowPluginPanelButton.Visibility = Visibility.Collapsed;
+                    ClosePluginPanelButton.Content = "»";
+                    ClosePluginPanelButton.ToolTip = "显示插件栏";
+                    // 将插件栏宽度设置为0
+                    PluginColumn.Width = new GridLength(0);
                 }
+                
+                // 强制刷新布局
+                MainContentGrid.UpdateLayout();
+            }
+            catch (Exception ex)
+            {
+                _logService.Error($"切换插件栏状态失败: {ex.Message}");
+                // 确保插件栏可以重新打开
+                _isPluginPanelVisible = true;
+                PluginPanel.Visibility = Visibility.Visible;
+                PluginSplitter.Visibility = Visibility.Visible;
+                ClosePluginPanelButton.Content = "«";
+                ClosePluginPanelButton.ToolTip = "隐藏插件栏";
+                // 重置插件栏宽度
+                PluginColumn.Width = new GridLength(250);
+                // 强制刷新布局
+                MainContentGrid.UpdateLayout();
             }
         }
         
