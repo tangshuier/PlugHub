@@ -33,6 +33,11 @@ namespace WPFPluginToolbox.Services
         public Brush MainForegroundBrush => GetMainForegroundBrush(_currentTheme);
         
         /// <summary>
+        /// 获取当前主题的右键菜单背景色
+        /// </summary>
+        public Brush ContextMenuBackgroundBrush => GetContextMenuBackgroundBrush(_currentTheme);
+        
+        /// <summary>
         /// 获取当前主题的插件面板背景色
         /// </summary>
         public Brush PluginPanelBackgroundBrush => GetPluginPanelBackgroundBrush(_currentTheme);
@@ -236,6 +241,28 @@ namespace WPFPluginToolbox.Services
                     return new SolidColorBrush(Color.FromRgb(180, 180, 180));
                 default:
                     return new SolidColorBrush(Color.FromRgb(70, 70, 70));
+            }
+        }
+        
+        /// <summary>
+        /// 获取主题对应的右键菜单背景色
+        /// </summary>
+        /// <param name="theme">主题枚举</param>
+        /// <returns>右键菜单背景色</returns>
+        private Brush GetContextMenuBackgroundBrush(ToolboxTheme theme)
+        {
+            switch (theme)
+            {
+                case ToolboxTheme.Black:
+                    return new SolidColorBrush(Color.FromRgb(45, 45, 45));
+                case ToolboxTheme.White:
+                    return new SolidColorBrush(Color.FromRgb(230, 230, 230));
+                case ToolboxTheme.LightBlack:
+                    return new SolidColorBrush(Color.FromRgb(65, 65, 65));
+                case ToolboxTheme.Gray:
+                    return new SolidColorBrush(Color.FromRgb(195, 195, 195));
+                default:
+                    return new SolidColorBrush(Color.FromRgb(45, 45, 45));
             }
         }
     }

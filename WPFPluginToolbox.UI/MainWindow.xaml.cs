@@ -429,6 +429,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             OnPropertyChanged(nameof(MainBackgroundBrush));
             OnPropertyChanged(nameof(MainForegroundBrush));
             OnPropertyChanged(nameof(PluginWorkspaceBackgroundBrush));
+            OnPropertyChanged(nameof(PluginPanelBackgroundBrush));
+            OnPropertyChanged(nameof(ContextMenuBackgroundBrush));
             OnPropertyChanged(nameof(BorderBrush));
             
             // 通知所有插件主题变更
@@ -1306,5 +1308,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         public Brush MainBackgroundBrush => _themeService.MainBackgroundBrush;
         public Brush MainForegroundBrush => _themeService.MainForegroundBrush;
         public Brush PluginWorkspaceBackgroundBrush => _themeService.PluginWorkspaceBackgroundBrush;
+        public Brush PluginPanelBackgroundBrush => _themeService.PluginPanelBackgroundBrush;
+        public Brush ContextMenuBackgroundBrush => _themeService.ContextMenuBackgroundBrush;
         public new Brush BorderBrush => _themeService.BorderBrush;
     }

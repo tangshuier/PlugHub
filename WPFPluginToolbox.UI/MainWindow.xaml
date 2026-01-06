@@ -152,10 +152,10 @@
         
         <!-- 自定义ContextMenu样式 -->
         <Style TargetType="ContextMenu">
-            <!-- 使用静态颜色作为兜底，确保菜单有背景色 -->
-            <Setter Property="Background" Value="#202020"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#404040"/>
+            <!-- 使用动态绑定到主题服务的属性 -->
+            <Setter Property="Background" Value="{Binding Path=ContextMenuBackgroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
+            <Setter Property="Foreground" Value="{Binding Path=MainForegroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
+            <Setter Property="BorderBrush" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Opacity" Value="1"/>
             <Setter Property="Template">

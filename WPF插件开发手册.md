@@ -2,7 +2,7 @@
 
 ## 1. 概述
 
-本手册详细介绍了如何使用WPF插件工具箱开发插件，包括插件类型、开发流程、API使用和最佳实践。
+本手册详细介绍了如何使用WPF插件工具箱开发插件，包括插件类型、开发流程、API使用和最佳实践。WPF插件工具箱支持插件UI多标签页切换，插件可以同步工具箱的主题，提供了完整的API支持。
 
 ## 2. 插件类型
 
@@ -32,7 +32,15 @@ WPF插件工具箱支持两种类型的插件：
 - **Visual Studio 2022** 或更高版本
 - **.NET 9.0 SDK** 或更高版本
 
-### 3.2 引用依赖
+### 3.2 插件加载机制
+
+WPF插件工具箱使用 **AssemblyLoadContext** 进行插件加载，具有以下优点：
+- 更好的插件隔离
+- 支持热插拔
+- 避免依赖冲突
+- 更高效的资源管理
+
+### 3.3 引用依赖
 
 在插件项目中添加以下引用：
 
@@ -138,7 +146,6 @@ namespace MyDependency
         public string Name { get; } = "我的依赖";
         public string Description { get; } = "这是一个示例依赖插件";
         public string Version { get; } = "1.0.0";
-        public DependencyType Type { get; } = DependencyType.Required;
 
         // 初始化方法
         public void Initialize()
@@ -158,8 +165,7 @@ namespace MyDependency
             return "来自依赖的数据";
         }
     }
-}
-```
+}```
 
 ### 4.3 开发插件UI
 
@@ -305,6 +311,71 @@ if (dependency != null)
 }
 ```
 
+### 5.5 配置操作
+
+插件可以使用API进行配置的读取和保存：
+
+```csharp
+// 定义配置类
+public class MyPluginConfig
+{
+    public string Setting1 { get; set; } = "默认值1";
+    public int Setting2 { get; set; } = 42;
+    public bool Setting3 { get; set; } = true;
+}
+
+// 读取配置
+var config = _pluginApi.GetConfig(new MyPluginConfig());
+_pluginApi.Info($"读取到配置: Setting1={config.Setting1}, Setting2={config.Setting2}");
+
+// 修改配置
+config.Setting1 = "新值";
+config.Setting2 = 100;
+
+// 保存配置
+await _pluginApi.SaveConfigAsync(config);
+_pluginApi.Info("配置保存成功");
+
+// 检查是否存在配置文件
+if (_pluginApi.HasConfig())
+{
+    _pluginApi.Info("配置文件存在");
+}
+
+// 获取配置目录
+string configDir = _pluginApi.ConfigDirectory;
+_pluginApi.Info($"配置目录: {configDir}");
+```
+
+### 5.6 主题相关
+
+插件可以使用API获取和响应主题相关的信息：
+
+```csharp
+// 获取当前主题
+var currentTheme = _pluginApi.CurrentTheme;
+_pluginApi.Info($"当前主题: {currentTheme}");
+
+// 获取当前主题的背景色
+var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
+
+// 获取当前主题的前景色
+var foregroundBrush = _pluginApi.CurrentForegroundBrush;
+
+// 设置是否同步工具箱主题
+_pluginApi.SyncToolboxTheme = true;
+
+// 订阅主题变更事件
+_pluginApi.ThemeChanged += OnThemeChanged;
+
+// 主题变更事件处理
+private void OnThemeChanged(object? sender, ToolboxTheme theme)
+{
+    _pluginApi.Info($"主题已变更为: {theme}");
+    // 根据新主题更新插件UI
+}
+```
+
 ## 6. 构建与部署
 
 ### 6.1 构建插件
@@ -395,7 +466,14 @@ if (dependency != null)
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
-| 1.0.0 | 2025-12-18 | 初始版本 |
+| 1.0.0 | 2025-12-12 | 初始版本，包含核心插件系统 |
+| 1.1.0 | 2025-12-13 | 新增插件依赖管理功能 |
+| 1.2.0 | 2025-12-14 | 新增目录监听功能，自动重新加载插件 |
+| 1.3.0 | 2025-12-15 | 完善插件API，新增文件操作和窗口操作功能 |
+| 1.4.0 | 2025-12-16 | 新增调试窗口，优化日志记录功能 |
+| 1.5.0 | 2025-12-17 | 完善插件生命周期管理，优化界面交互 |
+| 1.6.0 | 2025-12-18 | 移除MEF框架依赖，使用AssemblyLoadContext实现插件加载 |
+| 1.7.0 | 2025-12-26 | 新增主题相关功能，更新插件API文档 |
 
 ## 11. 许可证
 
@@ -404,4 +482,4 @@ if (dependency != null)
 ---
 
 **WPF插件工具箱开发团队**
-**最后更新日期：2025-12-18**
+**最后更新日期：2025-12-26**
