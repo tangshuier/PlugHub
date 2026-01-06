@@ -39,7 +39,7 @@ namespace ChineseFontMatrixPlugin
             InitializeComponent();
             _pluginApi = pluginApi;
             
-            // 重新启用主题同步
+            // 启用主题同步
             _pluginApi.SyncToolboxTheme = true;
             
             // 订阅主题变更事件
@@ -69,12 +69,20 @@ namespace ChineseFontMatrixPlugin
             // 延迟更新，确保工具箱的主题同步完成后再更新
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                UpdateThemeColors(theme);
-                // 再次强制更新，确保颜色设置生效
-                Dispatcher.BeginInvoke(new Action(() =>
+                try
                 {
+                    // 直接使用API提供的主题和颜色
                     UpdateThemeColors(theme);
-                }), System.Windows.Threading.DispatcherPriority.Render);
+                    // 再次强制更新，确保颜色设置生效
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateThemeColors(theme);
+                    }), System.Windows.Threading.DispatcherPriority.Render);
+                }
+                catch (Exception ex)
+                {
+                    _pluginApi.Error("处理主题变更事件失败", ex);
+                }
             }), System.Windows.Threading.DispatcherPriority.Input);
         }
         
@@ -152,26 +160,13 @@ namespace ChineseFontMatrixPlugin
                 // 获取主题相关的颜色
                 var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
                 var foregroundBrush = _pluginApi.CurrentForegroundBrush;
+                var currentTheme = _pluginApi.CurrentTheme;
                 
                 // 直接更新控件颜色，跳过资源字典更新，确保立即生效
                 bool isDarkTheme = IsDarkBackground(backgroundBrush);
                 
-                // 基于背景色推断实际主题
-                var inferredTheme = InferThemeFromBackground(backgroundBrush);
-                
-                // 确保使用正确的前景色
-                if (inferredTheme == ToolboxTheme.White || inferredTheme == ToolboxTheme.Gray)
-                {
-                    // 浅色主题使用深色前景色
-                    foregroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(34, 49, 64));
-                }
-                else
-                {
-                    // 深色主题使用浅色前景色
-                    foregroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
-                }
-                
-                UpdateControlColors(inferredTheme, isDarkTheme, backgroundBrush, foregroundBrush);
+                // 使用API提供的实际主题，而不是推断
+                UpdateControlColors(currentTheme, isDarkTheme, backgroundBrush, foregroundBrush);
                 
                 // 强制更新所有控件的样式
                 UpdateAllControls();
@@ -194,22 +189,8 @@ namespace ChineseFontMatrixPlugin
                 // 直接更新控件颜色，跳过资源字典更新，确保立即生效
                 bool isDarkTheme = IsDarkBackground(backgroundBrush);
                 
-                // 基于背景色推断实际主题
-                var inferredTheme = InferThemeFromBackground(backgroundBrush);
-                
-                // 确保使用正确的前景色
-                if (inferredTheme == ToolboxTheme.White || inferredTheme == ToolboxTheme.Gray)
-                {
-                    // 浅色主题使用深色前景色
-                    foregroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(34, 49, 64));
-                }
-                else
-                {
-                    // 深色主题使用浅色前景色
-                    foregroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
-                }
-                
-                UpdateControlColors(inferredTheme, isDarkTheme, backgroundBrush, foregroundBrush);
+                // 使用API提供的实际主题，而不是推断
+                UpdateControlColors(theme, isDarkTheme, backgroundBrush, foregroundBrush);
                 
                 // 强制更新所有控件的样式
                 UpdateAllControls();
