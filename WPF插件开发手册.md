@@ -347,14 +347,92 @@ string configDir = _pluginApi.ConfigDirectory;
 _pluginApi.Info($"配置目录: {configDir}");
 ```
 
-### 5.6 主题相关
+### 5.6 数据共享
 
-插件可以使用API获取和响应主题相关的信息：
+插件可以使用API进行数据共享，与其他插件交换数据：
+
+```csharp
+// 存储共享数据
+_pluginApi.ShareData("userSettings", new { Name = "John", Age = 30 });
+
+// 获取共享数据
+var userSettings = _pluginApi.GetSharedData<dynamic>("userSettings");
+if (userSettings != null)
+{
+    _pluginApi.Info($"共享数据: Name={userSettings.Name}, Age={userSettings.Age}");
+}
+
+// 检查是否存在共享数据
+if (_pluginApi.HasSharedData("userSettings"))
+{
+    _pluginApi.Info("共享数据存在");
+}
+
+// 删除共享数据
+_pluginApi.RemoveSharedData("userSettings");
+```
+
+### 5.7 事件总线
+
+插件可以使用事件总线发布和订阅事件：
+
+```csharp
+// 定义事件类
+public class UserLoggedInEvent
+{
+    public string UserName { get; set; }
+    public DateTime LoginTime { get; set; }
+}
+
+// 订阅事件
+_pluginApi.SubscribeEvent<UserLoggedInEvent>(OnUserLoggedIn);
+
+// 发布事件
+_pluginApi.PublishEvent(new UserLoggedInEvent
+{
+    UserName = "admin",
+    LoginTime = DateTime.Now
+});
+
+// 事件处理方法
+private void OnUserLoggedIn(UserLoggedInEvent @event)
+{
+    _pluginApi.Info($"用户登录: {@event.UserName} 在 {@event.LoginTime}");
+}
+
+// 取消订阅事件
+_pluginApi.UnsubscribeEvent<UserLoggedInEvent>(OnUserLoggedIn);
+```
+
+### 5.8 性能监控
+
+插件可以使用API进行性能监控：
+
+```csharp
+// 开始计时操作
+_pluginApi.StartOperationTimer("数据加载");
+
+// 执行耗时操作
+LoadLargeData();
+
+// 停止计时并记录操作
+_pluginApi.StopOperationTimer("数据加载");
+```
+
+### 5.9 主题相关
+
+插件可以使用API获取和响应主题相关的信息，实现与工具箱主题的实时同步：
+
+#### 5.9.1 主题基本操作
 
 ```csharp
 // 获取当前主题
 var currentTheme = _pluginApi.CurrentTheme;
 _pluginApi.Info($"当前主题: {currentTheme}");
+
+// 获取已保存的主题（从设置文件中获取）
+var savedTheme = _pluginApi.SavedTheme;
+_pluginApi.Info($"已保存主题: {savedTheme}");
 
 // 获取当前主题的背景色
 var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
@@ -362,19 +440,187 @@ var backgroundBrush = _pluginApi.CurrentBackgroundBrush;
 // 获取当前主题的前景色
 var foregroundBrush = _pluginApi.CurrentForegroundBrush;
 
+// 获取当前主题的插件面板背景色
+var pluginPanelBrush = _pluginApi.PluginPanelBackgroundBrush;
+
+// 获取当前主题的插件工作区背景色
+var workspaceBrush = _pluginApi.PluginWorkspaceBackgroundBrush;
+
+// 获取当前主题的边框颜色
+var borderBrush = _pluginApi.BorderBrush;
+
+// 获取当前主题的控件背景色
+var controlBgBrush = _pluginApi.ControlBackgroundColor;
+
+// 获取当前主题的控件前景色
+var controlFgBrush = _pluginApi.ControlForegroundColor;
+
+// 获取当前主题的强调色
+var accentBrush = _pluginApi.AccentColor;
+
 // 设置是否同步工具箱主题
 _pluginApi.SyncToolboxTheme = true;
+```
 
+#### 5.9.2 主题同步实现
+
+```csharp
 // 订阅主题变更事件
 _pluginApi.ThemeChanged += OnThemeChanged;
 
 // 主题变更事件处理
-private void OnThemeChanged(object? sender, ToolboxTheme theme)
+private void OnThemeChanged(object sender, ToolboxTheme theme)
 {
-    _pluginApi.Info($"主题已变更为: {theme}");
-    // 根据新主题更新插件UI
+    _pluginApi.Info($"收到主题变更事件: {theme}");
+    UpdatePluginTheme();
+}
+
+// 更新插件主题的方法
+private void UpdatePluginTheme()
+{
+    try
+    {
+        // 获取主题颜色
+        var mainBgBrush = _pluginApi.CurrentBackgroundBrush;
+        var mainFgBrush = _pluginApi.CurrentForegroundBrush;
+        var borderBrush = _pluginApi.BorderBrush;
+        
+        // 更新插件UI元素
+        UpdateControlTheme(mainBgBrush, mainFgBrush, borderBrush);
+    }
+    catch (Exception ex)
+    {
+        _pluginApi.Error($"更新主题失败: {ex.Message}", ex);
+    }
+}
+
+// 更新控件主题
+private void UpdateControlTheme(Brush backgroundBrush, Brush foregroundBrush, Brush borderBrush)
+{
+    // 更新根元素
+    this.Background = backgroundBrush;
+    this.Foreground = foregroundBrush;
+    
+    // 更新具体控件
+    if (TitleTextBlock != null)
+        TitleTextBlock.Foreground = foregroundBrush;
+        
+    if (ContentBorder != null)
+    {
+        ContentBorder.Background = backgroundBrush;
+        ContentBorder.BorderBrush = borderBrush;
+    }
+    
+    // 更新其他控件...
 }
 ```
+
+#### 5.9.3 应用主题到元素
+
+插件可以使用API将主题应用到指定元素：
+
+```csharp
+// 将当前主题应用到整个插件视图
+_pluginApi.ApplyThemeToElement(this);
+
+// 将当前主题应用到特定控件
+_pluginApi.ApplyThemeToElement(myButton);
+```
+
+#### 5.9.4 获取主题画笔
+
+插件可以使用API获取特定类型的主题画笔：
+
+```csharp
+// 获取背景画笔
+var bgBrush = _pluginApi.GetThemeBrush("background");
+
+// 获取前景画笔
+var fgBrush = _pluginApi.GetThemeBrush("foreground");
+
+// 获取边框画笔
+var borderBrush = _pluginApi.GetThemeBrush("border");
+
+// 获取强调色画笔
+var accentBrush = _pluginApi.GetThemeBrush("accent");
+```
+
+#### 5.9.5 完整主题同步示例
+
+```csharp
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using WPFPluginToolbox.Core;
+
+namespace ThemeAwarePlugin
+{
+    public partial class ThemeAwareView : UserControl
+    {
+        private readonly IPluginAPI _pluginApi;
+
+        public ThemeAwareView(IPluginAPI pluginApi)
+        {
+            InitializeComponent();
+            _pluginApi = pluginApi;
+            
+            // 订阅主题变更事件
+            _pluginApi.ThemeChanged += OnThemeChanged;
+            
+            // 初始化主题
+            UpdatePluginTheme();
+        }
+
+        private void OnThemeChanged(object sender, ToolboxTheme theme)
+        {
+            _pluginApi.Debug($"主题变更为: {theme}");
+            UpdatePluginTheme();
+        }
+
+        private void UpdatePluginTheme()
+        {
+            try
+            {
+                // 方法1: 自动应用主题到整个控件
+                _pluginApi.ApplyThemeToElement(this);
+                
+                // 方法2: 手动更新主题（如果需要更精细的控制）
+                // 获取主题颜色
+                // var mainBgBrush = _pluginApi.CurrentBackgroundBrush;
+                // var mainFgBrush = _pluginApi.CurrentForegroundBrush;
+                // var borderBrush = _pluginApi.BorderBrush;
+                
+                // 更新具体控件
+                // TitleTextBlock.Foreground = mainFgBrush;
+                // ContentBorder.Background = mainBgBrush;
+                // ContentBorder.BorderBrush = borderBrush;
+                
+                _pluginApi.Debug("主题更新完成");
+            }
+            catch (Exception ex)
+            {
+                _pluginApi.Error($"更新主题失败: {ex.Message}", ex);
+            }
+        }
+
+        private void ActionButton_Click(object sender, RoutedEventArgs e)
+        {
+            StatusTextBlock.Text = $"按钮点击时间: {DateTime.Now}";
+        }
+    }
+}
+```
+
+#### 5.9.6 主题同步最佳实践
+
+1. **及时订阅事件**：在插件初始化时立即订阅ThemeChanged事件
+2. **全面更新**：确保更新所有UI元素，包括背景、前景、边框等
+3. **错误处理**：添加异常捕获，确保主题更新失败不会影响插件功能
+4. **调试日志**：添加详细的调试日志，便于排查主题同步问题
+5. **性能优化**：避免在主题更新时进行耗时操作
+6. **视觉一致性**：确保插件UI与工具箱整体视觉风格保持一致
+7. **使用ApplyThemeToElement**：优先使用API提供的ApplyThemeToElement方法，简化主题应用过程
 
 ## 6. 构建与部署
 
@@ -474,6 +720,7 @@ private void OnThemeChanged(object? sender, ToolboxTheme theme)
 | 1.5.0 | 2025-12-17 | 完善插件生命周期管理，优化界面交互 |
 | 1.6.0 | 2025-12-18 | 移除MEF框架依赖，使用AssemblyLoadContext实现插件加载 |
 | 1.7.0 | 2025-12-26 | 新增主题相关功能，更新插件API文档 |
+| 1.8.0 | 2026-01-07 | 完善主题同步机制，修复插件主题实时更新问题，新增数据共享和事件总线功能 |
 
 ## 11. 许可证
 
@@ -482,4 +729,4 @@ private void OnThemeChanged(object? sender, ToolboxTheme theme)
 ---
 
 **WPF插件工具箱开发团队**
-**最后更新日期：2025-12-26**
+**最后更新日期：2026-01-07**

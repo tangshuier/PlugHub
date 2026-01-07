@@ -265,6 +265,15 @@ namespace WPFPluginToolbox.PluginSystem
         {
             return GetAllPlugins().FirstOrDefault(p => p.Id == pluginId);
         }
+        
+        /// <summary>
+        /// 设置主题服务实例
+        /// </summary>
+        /// <param name="themeService">主题服务实例</param>
+        public void SetThemeService(WPFPluginToolbox.Services.ThemeService themeService)
+        {
+            _pluginLoader.SetThemeService(themeService);
+        }
     }
     
     /// <summary>

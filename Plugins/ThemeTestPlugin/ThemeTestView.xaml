@@ -3,29 +3,28 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:ThemeTestPlugin" 
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800" 
-             Background="Transparent">
-    <Grid Margin="20">
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid x:Name="MainGrid" Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         
         <!-- 标题 -->
-        <TextBlock Grid.Row="0" 
+        <TextBlock x:Name="TitleTextBlock" Grid.Row="0" 
                    Text="主题色测试" 
                    FontSize="24" 
                    FontWeight="Bold" 
                    Margin="0 0 0 20" />
         
         <!-- 主题信息 -->
-        <Border Grid.Row="1" Margin="0 0 0 20" Background="{Binding Background, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Padding="15" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" CornerRadius="5">
+        <Border x:Name="ThemeInfoBorder" Grid.Row="1" Margin="0 0 0 20" Padding="15" BorderThickness="1" CornerRadius="5">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -33,16 +32,16 @@
                 
                 <!-- 已保存主题信息 -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0 0 0 5">
-                    <TextBlock Text="已保存主题: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock x:Name="SavedThemeLabel" Text="已保存主题: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
                     <TextBlock x:Name="SavedThemeTextBlock" Text="-" Margin="5 0" VerticalAlignment="Center" FontSize="14" />
-                    <TextBlock Text="(从设置文件中获取)" FontSize="12" VerticalAlignment="Center" Foreground="Gray" Margin="5 0" />
+                    <TextBlock x:Name="SavedThemeHint" Text="(从设置文件中获取)" FontSize="12" VerticalAlignment="Center" Margin="5 0" />
                 </StackPanel>
                 
                 <!-- 当前预览主题信息 -->
                 <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0 5 0 10">
-                    <TextBlock Text="当前预览主题: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock x:Name="CurrentThemeLabel" Text="当前预览主题: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
                     <TextBlock x:Name="CurrentThemeTextBlock" Text="-" Margin="5 0" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" />
-                    <TextBlock Text="(包括实时预览)" FontSize="12" VerticalAlignment="Center" Foreground="Gray" Margin="5 0" />
+                    <TextBlock x:Name="CurrentThemeHint" Text="(包括实时预览)" FontSize="12" VerticalAlignment="Center" Margin="5 0" />
                 </StackPanel>
                 
                 <!-- 主题状态提示 -->
@@ -52,7 +51,7 @@
                 
                 <!-- 主题色预览 -->
                 <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="主题色预览: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0 0 15 0" />
+                    <TextBlock x:Name="ThemePreviewLabel" Text="主题色预览: " FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0 0 15 0" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -66,27 +65,27 @@
                         </Grid.RowDefinitions>
                         
                         <!-- 主背景色 -->
-                        <Border Grid.Column="0" Grid.Row="0" x:Name="MainBgColorBorder" Width="40" Height="40" Margin="5" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" CornerRadius="3" />
-                        <TextBlock Grid.Column="0" Grid.Row="1" Text="主背景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
+                        <Border x:Name="MainBgColorBorder" Grid.Column="0" Grid.Row="0" Width="40" Height="40" Margin="5" BorderThickness="1" CornerRadius="3" />
+                        <TextBlock x:Name="MainBgColorLabel" Grid.Column="0" Grid.Row="1" Text="主背景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
                         
                         <!-- 主前景色 -->
-                        <Border Grid.Column="1" Grid.Row="0" x:Name="MainFgColorBorder" Width="40" Height="40" Margin="5" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" CornerRadius="3" />
-                        <TextBlock Grid.Column="1" Grid.Row="1" Text="主前景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
+                        <Border x:Name="MainFgColorBorder" Grid.Column="1" Grid.Row="0" Width="40" Height="40" Margin="5" BorderThickness="1" CornerRadius="3" />
+                        <TextBlock x:Name="MainFgColorLabel" Grid.Column="1" Grid.Row="1" Text="主前景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
                         
                         <!-- 面板背景色 -->
-                        <Border Grid.Column="2" Grid.Row="0" x:Name="PanelBgColorBorder" Width="40" Height="40" Margin="5" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" CornerRadius="3" />
-                        <TextBlock Grid.Column="2" Grid.Row="1" Text="面板背景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
+                        <Border x:Name="PanelBgColorBorder" Grid.Column="2" Grid.Row="0" Width="40" Height="40" Margin="5" BorderThickness="1" CornerRadius="3" />
+                        <TextBlock x:Name="PanelBgColorLabel" Grid.Column="2" Grid.Row="1" Text="面板背景" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
                         
                         <!-- 工作区背景色 -->
-                        <Border Grid.Column="3" Grid.Row="0" x:Name="WorkspaceBgColorBorder" Width="40" Height="40" Margin="5" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" CornerRadius="3" />
-                        <TextBlock Grid.Column="3" Grid.Row="1" Text="工作区" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
+                        <Border x:Name="WorkspaceBgColorBorder" Grid.Column="3" Grid.Row="0" Width="40" Height="40" Margin="5" BorderThickness="1" CornerRadius="3" />
+                        <TextBlock x:Name="WorkspaceBgColorLabel" Grid.Column="3" Grid.Row="1" Text="工作区" FontSize="10" HorizontalAlignment="Center" Margin="5 0" />
                     </Grid>
                 </StackPanel>
             </Grid>
         </Border>
         
         <!-- 控件测试区域 -->
-        <TabControl Grid.Row="2" Margin="0 10 0 0">
+        <TabControl x:Name="TestTabControl" Grid.Row="2" Margin="0 10 0 0">
             <TabItem Header="基本控件">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -169,11 +168,11 @@
                             </StackPanel>
                         </Expander>
                         
-                        <Border BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1" Width="300" Height="100" Margin="0 10 0 0" Padding="10">
+                        <Border BorderThickness="1" Width="300" Height="100" Margin="0 10 0 0" Padding="10">
                             <TextBlock Text="边框容器示例" TextWrapping="Wrap" />
                         </Border>
                         
-                        <ScrollViewer Width="300" Height="100" Margin="0 10 0 0" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1">
+                        <ScrollViewer Width="300" Height="100" Margin="0 10 0 0" BorderThickness="1">
                             <StackPanel>
                                 <TextBlock Text="滚动内容项1" Margin="5" />
                                 <TextBlock Text="滚动内容项2" Margin="5" />
@@ -191,21 +190,22 @@
         </TabControl>
         
         <!-- 主题色代码示例 -->
-        <Border Grid.Row="3" Margin="0 10 0 0" Background="{StaticResource {x:Static SystemColors.ControlBrushKey}}" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1">
+        <Border x:Name="CodeExampleBorder" Grid.Row="3" Margin="0 10 0 0" BorderThickness="1">
             <StackPanel>
-                <TextBlock Text="主题色代码示例" FontSize="16" FontWeight="Bold" Margin="10 10 0 10" />
-                <Border Margin="10" Padding="10" Background="{StaticResource {x:Static SystemColors.WindowBrushKey}}" BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1">
-                    <TextBlock TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource {x:Static SystemColors.WindowTextBrushKey}}">
-<![CDATA[<!-- 如何在插件中使用主题色 -->
-<Grid Background="{StaticResource {x:Static SystemColors.ControlBrushKey}}">
-    <Button Background="{StaticResource {x:Static SystemColors.ControlBrushKey}}" 
-            BorderBrush="{StaticResource {x:Static SystemColors.ControlDarkBrushKey}}" 
-            Foreground="{StaticResource {x:Static SystemColors.ControlTextBrushKey}}" />
-</Grid>
-
-<!-- 或者直接使用系统主题色 -->
-<Button Background="Transparent" BorderThickness="0" 
-        Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" />]]></TextBlock>
+                <TextBlock x:Name="CodeExampleTitle" Text="主题色代码示例" FontSize="16" FontWeight="Bold" Margin="10 10 0 10" />
+                <Border x:Name="CodeExampleInnerBorder" Margin="10" Padding="10" BorderThickness="1">
+                    <TextBlock x:Name="CodeExampleText" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12">
+                        <!-- 如何在插件中使用主题色 -->
+                        <Run Text="&lt;!-- 如何在插件中使用主题色 --&gt;&#x0a;" />
+                        <Run Text="&lt;Grid Background=&quot;{Binding Background, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}&quot;&gt;&#x0a;" />
+                        <Run Text="    &lt;Button Background=&quot;{Binding Background, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}&quot; &#x0a;" />
+                        <Run Text="            Foreground=&quot;{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}&quot; /&gt;&#x0a;" />
+                        <Run Text="&lt;/Grid&gt;&#x0a;&#x0a;" />
+                        <!-- 或者直接使用PluginAPI获取主题色 -->
+                        <Run Text="&lt;!-- 或者在代码中使用PluginAPI获取主题色 --&gt;&#x0a;" />
+                        <Run Text="var backgroundBrush = _pluginApi.CurrentBackgroundBrush;&#x0a;" />
+                        <Run Text="var foregroundBrush = _pluginApi.CurrentForegroundBrush;" />
+                    </TextBlock>
                 </Border>
             </StackPanel>
         </Border>

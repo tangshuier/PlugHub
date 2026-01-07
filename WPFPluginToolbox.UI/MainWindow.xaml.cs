@@ -105,6 +105,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             
             PluginManager.Initialize(pluginsDirectory, _logService);
             
+            // 设置主题服务
+            PluginManager.Instance.SetThemeService(_themeService);
+            _logService.Info("已将主题服务传递给插件管理器");
+            
             // 监听插件加载事件
             PluginManager.Instance.PluginLoaded += Instance_PluginLoaded;
             PluginManager.Instance.PluginUnloaded += Instance_PluginUnloaded;

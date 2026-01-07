@@ -17,89 +17,109 @@ namespace ThemeTestPlugin
             
             _pluginApi.Debug("主题色测试插件视图初始化完成");
             
-            // 先初始化显示，避免初始显示为"-"
-            CurrentThemeTextBlock.Text = "正在获取主题信息...";
-            
             try
             {
                 // 订阅主题变更事件
                 _pluginApi.ThemeChanged += OnThemeChanged;
                 
                 // 初始化主题显示
-                UpdateThemeInfo();
+                UpdateTheme();
             }
             catch (Exception ex)
             {
                 _pluginApi.Debug($"初始化主题事件订阅失败: {ex.Message}");
-                CurrentThemeTextBlock.Text = "主题初始化失败";
             }
         }
 
         private void OnThemeChanged(object sender, ToolboxTheme theme)
         {
-            UpdateThemeInfo();
+            _pluginApi.Debug($"收到主题变更事件: {theme}");
+            UpdateTheme();
         }
 
-        private void UpdateThemeInfo()
+        private void UpdateTheme()
         {
             try
             {
-                // 直接从PluginAPI获取主题信息，不需要ThemeService
+                // 获取主题信息
                 var savedTheme = _pluginApi.SavedTheme;
                 var currentTheme = _pluginApi.CurrentTheme;
                 
-                // 获取主题的友好名称
-                var savedThemeName = GetThemeFriendlyName(savedTheme);
-                var currentThemeName = GetThemeFriendlyName(currentTheme);
+                // 更新主题文本
+                UpdateThemeText(savedTheme, currentTheme);
                 
-                // 更新主题显示
-                SavedThemeTextBlock.Text = savedThemeName;
-                CurrentThemeTextBlock.Text = currentThemeName;
-                
-                // 设置主题状态提示
-                if (savedTheme == currentTheme)
-                {
-                    ThemeStatusTextBlock.Text = "当前预览主题与已保存主题一致";
-                    ThemeStatusTextBlock.Foreground = new SolidColorBrush(Colors.Green);
-                }
-                else
-                {
-                    ThemeStatusTextBlock.Text = "当前预览主题与已保存主题不同，点击保存设置按钮即可保存当前预览主题";
-                    ThemeStatusTextBlock.Foreground = new SolidColorBrush(Colors.Orange);
-                }
-                
-                // 更新主题色预览
-                MainBgColorBorder.Background = _pluginApi.CurrentBackgroundBrush;
-                MainFgColorBorder.Background = _pluginApi.CurrentForegroundBrush;
-                PanelBgColorBorder.Background = _pluginApi.PluginPanelBackgroundBrush;
-                WorkspaceBgColorBorder.Background = _pluginApi.PluginWorkspaceBackgroundBrush;
-                
-                // 关键修复：更新整个视图的主题样式
-                // 这确保了所有UI元素都能正确应用当前主题
+                // 使用API提供的方法自动应用主题到整个控件
                 _pluginApi.ApplyThemeToElement(this);
                 
-                _pluginApi.Debug($"主题更新: 已保存={savedTheme}, 当前={currentTheme}");
+                // 获取主题颜色（用于预览显示）
+                var mainBgBrush = _pluginApi.CurrentBackgroundBrush;
+                var mainFgBrush = _pluginApi.CurrentForegroundBrush;
+                var panelBgBrush = _pluginApi.PluginPanelBackgroundBrush;
+                var workspaceBgBrush = _pluginApi.PluginWorkspaceBackgroundBrush;
+                var borderBrush = _pluginApi.BorderBrush;
+                
+                // 更新主题色预览
+                UpdateColorPreviews(mainBgBrush, mainFgBrush, panelBgBrush, workspaceBgBrush, borderBrush);
+                
+                // 更新代码示例部分
+                UpdateCodeExampleTheme();
+                
+                _pluginApi.Debug($"主题更新完成: 已保存={savedTheme}, 当前={currentTheme}");
             }
             catch (Exception ex)
             {
-                SavedThemeTextBlock.Text = "主题获取失败";
-                CurrentThemeTextBlock.Text = "主题获取失败";
-                ThemeStatusTextBlock.Text = "主题信息获取失败";
-                ThemeStatusTextBlock.Foreground = new SolidColorBrush(Colors.Red);
-                
-                _pluginApi.Debug($"更新主题信息失败: {ex.Message}");
-                
-                // 设置默认透明背景，避免视觉异常
-                MainBgColorBorder.Background = new SolidColorBrush(Colors.Transparent);
-                MainFgColorBorder.Background = new SolidColorBrush(Colors.Transparent);
-                PanelBgColorBorder.Background = new SolidColorBrush(Colors.Transparent);
-                WorkspaceBgColorBorder.Background = new SolidColorBrush(Colors.Transparent);
+                _pluginApi.Debug($"更新主题失败: {ex.Message}");
+            }
+        }
+
+        private void UpdateThemeText(ToolboxTheme savedTheme, ToolboxTheme currentTheme)
+        {
+            // 获取主题的友好名称
+            var savedThemeName = GetThemeFriendlyName(savedTheme);
+            var currentThemeName = GetThemeFriendlyName(currentTheme);
+            
+            // 更新主题显示
+            SavedThemeTextBlock.Text = savedThemeName;
+            CurrentThemeTextBlock.Text = currentThemeName;
+            
+            // 设置主题状态提示
+            if (savedTheme == currentTheme)
+            {
+                ThemeStatusTextBlock.Text = "当前预览主题与已保存主题一致";
+                ThemeStatusTextBlock.Foreground = new SolidColorBrush(Colors.Green);
+            }
+            else
+            {
+                ThemeStatusTextBlock.Text = "当前预览主题与已保存主题不同，点击保存设置按钮即可保存当前预览主题";
+                ThemeStatusTextBlock.Foreground = new SolidColorBrush(Colors.Orange);
             }
         }
         
-        /// <summary>
-        /// 获取主题的友好名称
-        /// </summary>
+        private void UpdateColorPreviews(Brush mainBgBrush, Brush mainFgBrush, Brush panelBgBrush, Brush workspaceBgBrush, Brush borderBrush)
+        {
+            // 更新主背景色预览
+            MainBgColorBorder.Background = mainBgBrush;
+            MainBgColorBorder.BorderBrush = borderBrush;
+            
+            // 更新主前景色预览
+            MainFgColorBorder.Background = mainFgBrush;
+            MainFgColorBorder.BorderBrush = borderBrush;
+            
+            // 更新面板背景色预览
+            PanelBgColorBorder.Background = panelBgBrush;
+            PanelBgColorBorder.BorderBrush = borderBrush;
+            
+            // 更新工作区背景色预览
+            WorkspaceBgColorBorder.Background = workspaceBgBrush;
+            WorkspaceBgColorBorder.BorderBrush = borderBrush;
+        }
+
+        private void UpdateCodeExampleTheme()
+        {
+            // 代码示例部分的主题已经通过 ApplyThemeToElement 自动应用
+            // 这里可以添加其他需要特殊处理的逻辑
+        }
+
         private string GetThemeFriendlyName(ToolboxTheme theme)
         {
             return theme switch

@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\WPFPluginToolbox.Core\WPFPluginToolbox.Core.csproj" />
     <ProjectReference Include="..\..\WPFPluginToolbox.Services\WPFPluginToolbox.Services.csproj" />
+    <ProjectReference Include="..\..\WPFPluginToolbox.PluginSystem\WPFPluginToolbox.PluginSystem.csproj" />
   </ItemGroup>
 </Project>

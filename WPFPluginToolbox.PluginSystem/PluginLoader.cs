@@ -32,6 +32,11 @@ namespace WPFPluginToolbox.PluginSystem
         private readonly WPFPluginToolbox.Services.LogService? _logService;
         
         /// <summary>
+        /// 主题服务实例
+        /// </summary>
+        private WPFPluginToolbox.Services.ThemeService? _themeService;
+        
+        /// <summary>
         /// 插件目录路径
         /// </summary>
         public string PluginsDirectory { get; set; } = string.Empty;
@@ -51,7 +56,7 @@ namespace WPFPluginToolbox.PluginSystem
             {
                 Directory.CreateDirectory(PluginsDirectory);
                 LogInfo($"创建了插件目录: {PluginsDirectory}");
-    
+
             }
             
             // 清理旧的临时文件
@@ -62,6 +67,23 @@ namespace WPFPluginToolbox.PluginSystem
             
             // 初始化目录监听
             InitializeDirectoryWatcher();
+        }
+        
+        /// <summary>
+        /// 设置主题服务实例
+        /// </summary>
+        /// <param name="themeService">主题服务实例</param>
+        public void SetThemeService(WPFPluginToolbox.Services.ThemeService themeService)
+        {
+            _themeService = themeService;
+            
+            // 为已加载的插件设置主题服务
+            foreach (var pluginApi in _pluginApis.Values)
+            {
+                pluginApi.SetThemeService(themeService);
+            }
+            
+            LogInfo("=== PluginLoader: ThemeService set successfully");
         }
         
         /// <summary>
@@ -299,17 +321,23 @@ namespace WPFPluginToolbox.PluginSystem
                                     if (CheckPluginDependencies())
                                     {
                                         // 创建插件API实例，传入插件加载器引用
-                                        var pluginApi = new PluginAPI(this);
-                                        
-                                        // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
-                                        pluginApi.DebugInfoGenerated += (sender, e) =>
-                                        {
-                                            string logMessage = $"[{plugin.Name}] {e.Message}";
-                                            switch (e.Level)
-                                            {
-                                                case DebugLevel.Debug:
-                                                    _logService?.Debug(logMessage);
-                                                    break;
+                                var pluginApi = new PluginAPI(this);
+                                
+                                // 设置主题服务（如果已初始化）
+                                if (_themeService != null)
+                                {
+                                    pluginApi.SetThemeService(_themeService);
+                                }
+                                
+                                // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
+                                pluginApi.DebugInfoGenerated += (sender, e) =>
+                                {
+                                    string logMessage = $"[{plugin.Name}] {e.Message}";
+                                    switch (e.Level)
+                                    {
+                                        case DebugLevel.Debug:
+                                            _logService?.Debug(logMessage);
+                                            break;
                                                 case DebugLevel.Info:
                                                     _logService?.Info(logMessage);
                                                     break;
@@ -424,6 +452,12 @@ namespace WPFPluginToolbox.PluginSystem
                             {
                                 // 创建插件API实例，传入插件加载器引用
                                 var pluginApi = new PluginAPI(this);
+                                
+                                // 设置主题服务（如果已初始化）
+                                if (_themeService != null)
+                                {
+                                    pluginApi.SetThemeService(_themeService);
+                                }
                                 
                                 // 订阅DebugInfoGenerated事件，将插件日志传递给LogService
                                 pluginApi.DebugInfoGenerated += (sender, e) =>
