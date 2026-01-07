@@ -81,7 +81,6 @@ namespace MyPlugin
     public class MyPlugin : IPlugin
     {
         private IPluginAPI? _pluginApi;
-        private MyPluginView? _mainView;
         
         // 插件基本信息
         public string Id { get; } = "MyPlugin";
@@ -97,7 +96,8 @@ namespace MyPlugin
             _pluginApi.Info($"{Name} 初始化完成");
             
             // 初始化资源
-            _mainView = new MyPluginView();
+            // 注意：不在Initialize中创建UI控件，而是在GetMainView中创建
+            // 这样可以确保UI控件在主UI线程中创建，避免线程亲和性问题
         }
 
         // 激活方法
@@ -119,13 +119,15 @@ namespace MyPlugin
         {
             _pluginApi?.Info($"{Name} 释放资源");
             // 释放资源
-            _mainView?.Dispose();
+            // 注意：由于视图实例在GetMainView中创建，不需要在这里管理视图资源
         }
 
         // 返回主视图
+        // 注意：每次调用都应创建新的视图实例，而不是返回单例
+        // 因为WPF中的UI元素只能有一个父元素，当视图从UI中移除后不能再添加回UI
         public UserControl GetMainView()
         {
-            return _mainView ?? throw new InvalidOperationException("插件主视图未初始化");
+            return new MyPluginView();
         }
     }
 }
